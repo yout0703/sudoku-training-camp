@@ -1,6 +1,6 @@
 /**
- * 题型目录 — 基于 10-12 岁组比赛说明
- * phase: 1=入门 2=基础变体 3=进阶变体 4=高阶
+ * 题型目录 — 对齐「奔跑吧·少年」数独之星 10-12 岁组
+ * phase: 1=入门 2=基础变体 3=进阶变体 4=高阶/总决赛
  */
 
 export interface PuzzleTypeDef {
@@ -20,7 +20,7 @@ export interface PuzzleTypeDef {
 }
 
 export const PUZZLE_TYPES: PuzzleTypeDef[] = [
-  // ─── Phase 1: 入门 ───
+  // ─── Phase 1: 入门标准 ───
   {
     code: "standard_4",
     name: "四宫标准数独",
@@ -31,7 +31,7 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     description: "4×4 小盘面，填入 1-4",
     rules: "将数字 1-4 填入空格内，使每行、每列及每宫内数字均不重复。",
     icon: "🌱",
-    color: "#22c55e",
+    color: "#16a34a",
     phase: 1,
     sortOrder: 1,
     isFinals: false,
@@ -46,10 +46,10 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     description: "6×6 盘面，填入 1-6",
     rules: "将数字 1-6 填入空格内，使每行、每列及每宫内数字均不重复。",
     icon: "⭐",
-    color: "#3b82f6",
+    color: "#0d9488",
     phase: 1,
     sortOrder: 2,
-    isFinals: false,
+    isFinals: true,
   },
   {
     code: "standard_9",
@@ -61,10 +61,10 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     description: "9×9 经典盘面，填入 1-9",
     rules: "将数字 1-9 填入空格内，使每行、每列及每宫内数字均不重复。",
     icon: "🏆",
-    color: "#8b5cf6",
+    color: "#7c3aed",
     phase: 1,
     sortOrder: 3,
-    isFinals: false,
+    isFinals: true,
   },
 
   // ─── Phase 2: 基础变体 ───
@@ -78,10 +78,10 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     description: "标准规则 + 两条对角线也不能重复",
     rules: "将数字 1-6 填入空格内，使每行、每列、每宫以及两条对角线上的数字均不重复。",
     icon: "✖️",
-    color: "#ec4899",
+    color: "#db2777",
     phase: 2,
     sortOrder: 4,
-    isFinals: false,
+    isFinals: true,
   },
   {
     code: "odd_even_6",
@@ -93,10 +93,10 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     description: "方块格只能填偶数，圆格只能填奇数",
     rules: "将数字 1-6 填入空格内，使每行、每列、每宫内数字均不重复。含正方形的空格内只能填偶数（2、4、6），含圆形的空格内只能填奇数（1、3、5）。",
     icon: "🔷",
-    color: "#06b6d4",
+    color: "#0891b2",
     phase: 2,
     sortOrder: 5,
-    isFinals: false,
+    isFinals: true,
   },
   {
     code: "killer_4",
@@ -108,10 +108,70 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     description: "虚线框内数字之和等于提示数",
     rules: "将数字 1-4 填入空格内，使每行、每列、每宫内的数字均不重复。虚线框内提示数表示该框内所有数字之和，同一虚线框内不能出现相同的数字。",
     icon: "🎯",
-    color: "#ef4444",
+    color: "#dc2626",
     phase: 2,
     sortOrder: 6,
     isFinals: true,
+  },
+  {
+    code: "big_small_4",
+    name: "四宫大小数数独",
+    gridSize: 4,
+    boxRows: 2,
+    boxCols: 2,
+    variantType: "big_small",
+    description: "灰格填大数，白格填小数",
+    rules: "将数字 1-4 填入空格内，使每行、每列、每宫内数字均不重复。灰色格内只能填较大数（3、4），白色格内只能填较小数（1、2）。",
+    icon: "◐",
+    color: "#64748b",
+    phase: 2,
+    sortOrder: 7,
+    isFinals: false,
+  },
+  {
+    code: "big_small_6",
+    name: "六宫大小数数独",
+    gridSize: 6,
+    boxRows: 2,
+    boxCols: 3,
+    variantType: "big_small",
+    description: "灰格填 4-6，白格填 1-3",
+    rules: "将数字 1-6 填入空格内，使每行、每列、每宫内数字均不重复。灰色格内只能填较大数（4、5、6），白色格内只能填较小数（1、2、3）。",
+    icon: "◑",
+    color: "#475569",
+    phase: 2,
+    sortOrder: 8,
+    isFinals: false,
+  },
+  {
+    code: "greater_than_4",
+    name: "四宫不等号数独",
+    gridSize: 4,
+    boxRows: 2,
+    boxCols: 2,
+    variantType: "greater_than",
+    description: "相邻格之间的 > < 表示大小关系",
+    rules: "将数字 1-4 填入空格，使每行、每列、每宫内数字均不重复。两格之间的大于号和小于号表示这两格的大小关系。",
+    icon: "≷",
+    color: "#ea580c",
+    phase: 2,
+    sortOrder: 9,
+    isFinals: false,
+  },
+  {
+    code: "thermometer_4",
+    name: "四宫温度计数独",
+    gridSize: 4,
+    boxRows: 2,
+    boxCols: 2,
+    variantType: "thermometer",
+    description: "从圆点到末端数字逐渐增大",
+    rules: "将数字 1-4 填入空格内，使每行、每列、每宫内数字均不重复。线上数字从小圆点到末端，逐渐增大。",
+    icon: "🌡️",
+    color: "#e11d48",
+    phase: 2,
+    sortOrder: 10,
+    isFinals: false,
   },
 
   // ─── Phase 3: 进阶变体 ───
@@ -125,10 +185,10 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     description: "宫的形状不规则，不是长方形",
     rules: "将数字 1-6 填入空格内，使每行、每列、每个不规则粗线宫内的数字均不重复。",
     icon: "🧩",
-    color: "#f59e0b",
+    color: "#d97706",
     phase: 3,
-    sortOrder: 7,
-    isFinals: false,
+    sortOrder: 11,
+    isFinals: true,
   },
   {
     code: "consecutive_6",
@@ -140,9 +200,9 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     description: "粗线标记的两格数字差值为 1",
     rules: "将数字 1-6 填入空格内，使每行、每列、每宫内的数字均不重复。两格之间的粗线标记表示这两格为连续数，差值为 1，所有符合该条件的均已标出。",
     icon: "🔗",
-    color: "#10b981",
+    color: "#059669",
     phase: 3,
-    sortOrder: 8,
+    sortOrder: 12,
     isFinals: true,
   },
   {
@@ -155,10 +215,10 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     description: "圆圈中的 5/6 表示两侧格内数字之和",
     rules: "将数字 1-6 填入空格内，使每行、每列、每宫内数字均不重复。盘面内圆圈中的数字 5 和 6 分别表示两侧格内数字之和，相邻两格中间没有圆圈则两侧格内数字之和不能为 5 和 6。",
     icon: "🔮",
-    color: "#a855f7",
+    color: "#9333ea",
     phase: 3,
-    sortOrder: 9,
-    isFinals: false,
+    sortOrder: 13,
+    isFinals: true,
   },
   {
     code: "fortress_6",
@@ -170,13 +230,43 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     description: "灰格内数字大于相邻白格",
     rules: "将数字 1-6 填入空格内，使每行、每列及每宫内数字均不重复。灰色格内数字大于相邻白色格内数字。",
     icon: "🏰",
-    color: "#64748b",
+    color: "#57534e",
     phase: 3,
-    sortOrder: 10,
+    sortOrder: 14,
     isFinals: true,
   },
+  {
+    code: "ratio_6",
+    name: "六宫比例数独",
+    gridSize: 6,
+    boxRows: 2,
+    boxCols: 3,
+    variantType: "ratio",
+    description: "相邻格之间的分数表示数字比例",
+    rules: "将数字 1-6 填入空格，使每行、每列、每宫内数字均不重复。相邻两格内的提示数表示该两格内数字的比例关系。",
+    icon: "➗",
+    color: "#2563eb",
+    phase: 3,
+    sortOrder: 15,
+    isFinals: false,
+  },
+  {
+    code: "killer_6",
+    name: "六宫杀手数独",
+    gridSize: 6,
+    boxRows: 2,
+    boxCols: 3,
+    variantType: "killer",
+    description: "虚线笼内数字之和等于提示数",
+    rules: "将数字 1-6 填入空格内，使每行、每列、每宫内的数字均不重复。虚线框内提示数表示该框内所有数字之和，同一虚线框内不能出现相同的数字。",
+    icon: "🎯",
+    color: "#b91c1c",
+    phase: 3,
+    sortOrder: 16,
+    isFinals: false,
+  },
 
-  // ─── Phase 4: 高阶 ───
+  // ─── Phase 4: 高阶 / 总决赛 ───
   {
     code: "antiknight_6",
     name: "六宫无马数独",
@@ -187,18 +277,18 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     description: "马步位置的两格不能相同",
     rules: "将数字 1-6 填入空格内，使每行、每列、每宫内数字均不重复。彼此形成国际象棋中马步位置（二拐一）关系的两格内不能出现相同的数字。",
     icon: "♞",
-    color: "#dc2626",
+    color: "#991b1b",
     phase: 4,
-    sortOrder: 11,
+    sortOrder: 17,
     isFinals: true,
   },
 ];
 
 export const PHASE_NAMES: Record<number, string> = {
-  1: "🌱 入门基础",
-  2: "⭐ 基础变体",
-  3: "🔥 进阶变体",
-  4: "🏆 高阶挑战",
+  1: "入门基础",
+  2: "基础变体",
+  3: "进阶变体",
+  4: "高阶挑战",
 };
 
 /** 根据代码获取题型 */

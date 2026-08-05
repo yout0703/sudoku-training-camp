@@ -8,6 +8,7 @@ import { eq, sql, and } from "drizzle-orm";
 import { db, schema } from "./db/client";
 import { PUZZLE_TYPES, PHASE_NAMES, getPuzzleType } from "../shared/puzzle-types";
 import { generatePuzzle } from "./puzzle-service";
+import { serializeVariantData } from "./variant-serialize";
 import type { Difficulty } from "../engine";
 import { analyzeWeakness } from "./ai/analyzer";
 
@@ -73,6 +74,7 @@ const app = new Elysia()
 
       const diff = (difficulty ?? "medium") as Difficulty;
       const generated = generatePuzzle(typeDef, diff);
+      const data = serializeVariantData(generated.data);
 
       // 存入数据库
       const result = db
@@ -82,7 +84,7 @@ const app = new Elysia()
           difficulty: diff,
           givens: JSON.stringify(generated.givens),
           solution: JSON.stringify(generated.solution),
-          dataJson: generated.data ? JSON.stringify(generated.data) : null,
+          dataJson: data ? JSON.stringify(data) : null,
         })
         .returning({ id: schema.puzzles.id })
         .get();
@@ -99,7 +101,7 @@ const app = new Elysia()
         givens: generated.givens,
         solution: generated.solution,
         variantType: typeDef.variantType,
-        data: generated.data ?? null,
+        data,
       };
     },
     {
@@ -241,6 +243,51 @@ const app = new Elysia()
       sortOrder: l.sortOrder,
       status: progressMap.get(l.id) ?? "locked",
     }));
+  })
+
+  // ─── 重置全部课程进度（须在 /:id 之前注册）───
+  .post("/api/lessons/reset", () => {
+    const allLessons = db.select().from(schema.lessons).all();
+    let resetCount = 0;
+
+    for (const lesson of allLessons) {
+      const status = lesson.sortOrder === 1 ? "available" : "locked";
+      const existing = db
+        .select()
+        .from(schema.lessonProgress)
+        .where(
+          and(
+            eq(schema.lessonProgress.userId, DEFAULT_USER_ID),
+            eq(schema.lessonProgress.lessonId, lesson.id),
+          ),
+        )
+        .get();
+
+      if (existing) {
+        db.update(schema.lessonProgress)
+          .set({
+            status,
+            startedAt: null,
+            completedAt: null,
+          })
+          .where(eq(schema.lessonProgress.id, existing.id))
+          .run();
+      } else {
+        db.insert(schema.lessonProgress)
+          .values({
+            userId: DEFAULT_USER_ID,
+            lessonId: lesson.id,
+            status,
+            startedAt: null,
+            completedAt: null,
+          })
+          .run();
+      }
+      resetCount++;
+    }
+
+    analysisCache = null;
+    return { success: true, resetCount };
   })
 
   // ─── 课程详情 ───
@@ -429,12 +476,81 @@ const app = new Elysia()
     }
     const totalCompleted = progress.filter((p) => p.status === "completed").length;
     if (totalCompleted === 0) {
-      recommendations.push("🌱 从第一课开始你的数独之旅吧！");
+      recommendations.push("从第一课开始你的数独之旅吧");
     } else if (totalCompleted < 4) {
-      recommendations.push("📚 继续学习课程，打好基础！");
+      recommendations.push("继续学习课程，打好基础");
     } else {
-      recommendations.push("💪 挑战更高难度的题目，提升速度！");
+      recommendations.push("挑战更高难度，提升速度");
     }
+
+    // 今日任务
+    const today = new Date().toISOString().split("T")[0];
+    const todayRecords = recent.filter((r) => (r.createdAt ?? "").startsWith(today));
+    const todayCompleted = todayRecords.filter((r) => r.completed === 1).length;
+    const todayTarget = 3;
+
+    // 主任务：未完成课程优先，否则薄弱题型，否则标准六宫
+    const nextLesson = lessons
+      .slice()
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .find((l) => {
+        const st = progressMap.get(l.id);
+        return st === "available" || st === "in_progress";
+      });
+
+    let missionKind: "lesson" | "weak" | "practice" = "practice";
+    let missionTitle = "完成 3 道练习题";
+    let missionSubtitle = "任意题型，保持手感";
+    let missionHref = "/practice";
+    let missionTypeCode: string | null = null;
+    let missionLessonId: number | null = null;
+
+    if (nextLesson && todayCompleted < todayTarget) {
+      missionKind = "lesson";
+      missionTitle = nextLesson.title;
+      missionSubtitle = "学完后立刻练一题，记得更牢";
+      missionHref = `/learn/${nextLesson.id}`;
+      missionLessonId = nextLesson.id;
+      missionTypeCode = nextLesson.typeCode;
+    } else if (sortedByWeak.length > 0 && sortedByWeak[0].weakScore > 35) {
+      const weak = sortedByWeak[0];
+      const def = getPuzzleType(weak.typeCode);
+      missionKind = "weak";
+      missionTitle = `加强：${def?.name ?? weak.typeCode}`;
+      missionSubtitle = "这是最近表现较弱的题型";
+      missionHref = `/practice/${weak.typeCode}`;
+      missionTypeCode = weak.typeCode;
+    } else {
+      missionKind = "practice";
+      missionTitle = "今日自由练习";
+      missionSubtitle = `再完成 ${Math.max(todayTarget - todayCompleted, 0)} 题即可打卡`;
+      missionHref = "/practice/standard_6";
+      missionTypeCode = "standard_6";
+    }
+
+    const todayMission = {
+      kind: missionKind,
+      title: missionTitle,
+      subtitle: missionSubtitle,
+      href: missionHref,
+      typeCode: missionTypeCode,
+      lessonId: missionLessonId,
+      todayCompleted,
+      todayTarget,
+      done: todayCompleted >= todayTarget,
+    };
+
+    // 薄弱题型 Top 3
+    const weakTypes = sortedByWeak.slice(0, 3).map((s) => {
+      const def = getPuzzleType(s.typeCode);
+      return {
+        typeCode: s.typeCode,
+        name: def?.name ?? s.typeCode,
+        icon: def?.icon ?? "·",
+        color: def?.color ?? "#0d9488",
+        weakScore: s.weakScore,
+      };
+    });
 
     return {
       user: user
@@ -457,6 +573,8 @@ const app = new Elysia()
         createdAt: r.createdAt,
       })),
       recommendations,
+      todayMission,
+      weakTypes,
     };
   })
 

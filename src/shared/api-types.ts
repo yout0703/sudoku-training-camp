@@ -94,4 +94,22 @@ export interface DashboardDTO {
     createdAt: string;
   }>;
   recommendations: string[];
+  todayMission: {
+    kind: "lesson" | "weak" | "practice";
+    title: string;
+    subtitle: string;
+    href: string;
+    typeCode: string | null;
+    lessonId: number | null;
+    todayCompleted: number;
+    todayTarget: number;
+    done: boolean;
+  };
+  weakTypes: Array<{
+    typeCode: string;
+    name: string;
+    icon: string;
+    color: string;
+    weakScore: number;
+  }>;
 }

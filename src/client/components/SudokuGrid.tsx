@@ -1,30 +1,26 @@
 /**
- * 数独盘面组件
- * 支持多尺寸（4/6/9）、多种变体渲染、平板触控交互
+ * 数独盘面：多尺寸、多变体、错误高亮
+ * 格子尺寸随容器宽度自适应（手机 / iPad）
  */
-import { memo, useMemo } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { useGameStore } from "../stores/gameStore";
+import { normalizeVariantData } from "../lib/variant";
+import { computeCellSize, useContainerWidth } from "../hooks/useContainerWidth";
 import type { PuzzleDTO } from "../../shared/api-types";
-import type {
-  VariantData,
-  OddEvenData,
-  FortressData,
-  KillerData,
-  ConsecutiveData,
-  Sum56Data,
-  IrregularData,
-} from "../../engine";
+import type { IrregularData, KillerData, ThermometerData } from "../../engine";
 
 interface Props {
   puzzle: PuzzleDTO;
+  /** 只读演示（课程） */
+  readOnly?: boolean;
+  /** 高亮格子索引（演示用） */
+  highlightCells?: number[];
+  /** 覆盖显示的盘面（演示用） */
+  displayGrid?: number[];
+  /** 外层最大宽度 class，默认占满父容器 */
+  className?: string;
 }
 
-/** 安全读取变体数据 */
-function useVariantData(data: unknown): VariantData {
-  return (data as VariantData) ?? {};
-}
-
-/** 计算格子边框样式 */
 function getBorderStyle(
   row: number,
   col: number,
@@ -33,23 +29,16 @@ function getBorderStyle(
   boxCols: number,
   irregular?: IrregularData,
 ): React.CSSProperties {
-  if (irregular) {
-    return getIrregularBorders(row, col, size, irregular);
-  }
+  if (irregular) return getIrregularBorders(row, col, size, irregular);
   const style: React.CSSProperties = {
-    borderRight: "1px solid #cbd5e1",
-    borderBottom: "1px solid #cbd5e1",
+    borderRight: "1px solid #c5d4ce",
+    borderBottom: "1px solid #c5d4ce",
   };
-  if ((col + 1) % boxCols === 0 && col < size - 1) {
-    style.borderRight = "3px solid #1e293b";
-  }
-  if ((row + 1) % boxRows === 0 && row < size - 1) {
-    style.borderBottom = "3px solid #1e293b";
-  }
+  if ((col + 1) % boxCols === 0 && col < size - 1) style.borderRight = "3px solid #1a2e28";
+  if ((row + 1) % boxRows === 0 && row < size - 1) style.borderBottom = "3px solid #1a2e28";
   return style;
 }
 
-/** 不规则宫的边框计算 */
 function getIrregularBorders(
   row: number,
   col: number,
@@ -59,45 +48,55 @@ function getIrregularBorders(
   const idx = row * size + col;
   const myBox = irregular.boxOf[idx];
   const style: React.CSSProperties = {
-    borderRight: "1px solid #cbd5e1",
-    borderBottom: "1px solid #cbd5e1",
+    borderRight: "1px solid #c5d4ce",
+    borderBottom: "1px solid #c5d4ce",
   };
-  // 右边
   if (col < size - 1) {
-    const rightBox = irregular.boxOf[idx + 1];
-    if (rightBox !== myBox) style.borderRight = "3px solid #1e293b";
+    if (irregular.boxOf[idx + 1] !== myBox) style.borderRight = "3px solid #1a2e28";
   }
-  // 下边
   if (row < size - 1) {
-    const downBox = irregular.boxOf[(row + 1) * size + col];
-    if (downBox !== myBox) style.borderBottom = "3px solid #1e293b";
+    if (irregular.boxOf[(row + 1) * size + col] !== myBox) style.borderBottom = "3px solid #1a2e28";
   }
   return style;
 }
 
-function SudokuGridBase({ puzzle }: Props) {
-  const { meta, givens, variantType, data: rawData } = puzzle;
+function SudokuGridBase({ puzzle, readOnly, highlightCells, displayGrid, className = "" }: Props) {
+  const { meta, variantType, data: rawData } = puzzle;
   const { size, boxRows, boxCols } = meta;
   const total = size * size;
 
-  const vdata = useVariantData(rawData);
+  const shellRef = useRef<HTMLDivElement>(null);
+  const shellWidth = useContainerWidth(shellRef, 320);
+  const cellSize = useMemo(() => computeCellSize(size, shellWidth), [size, shellWidth]);
+  const fontSize = Math.max(14, Math.round(cellSize * (size <= 4 ? 0.44 : size <= 6 ? 0.42 : 0.4)));
+  const thick = cellSize >= 56 ? 3 : 2;
+
+  const vdata = useMemo(() => normalizeVariantData(rawData), [rawData]);
   const userGrid = useGameStore((s) => s.userGrid);
   const candidates = useGameStore((s) => s.candidates);
   const selectedCell = useGameStore((s) => s.selectedCell);
   const selectCell = useGameStore((s) => s.selectCell);
   const givensArr = useGameStore((s) => s.givens);
+  const errorCells = useGameStore((s) => s.errorCells);
+  const flashError = useGameStore((s) => s.flashError);
+  const clearFlash = useGameStore((s) => s.clearFlash);
 
-  const selectedValue = selectedCell !== null ? userGrid[selectedCell] : 0;
+  useEffect(() => {
+    if (flashError === null) return;
+    const t = setTimeout(() => clearFlash(), 450);
+    return () => clearTimeout(t);
+  }, [flashError, clearFlash]);
 
-  // 预计算每个格子的同区高亮
+  const grid = displayGrid ?? userGrid;
+  const selectedValue = !readOnly && selectedCell !== null ? grid[selectedCell] : 0;
+
   const highlightInfo = useMemo(() => {
-    if (selectedCell === null) return null;
+    if (readOnly || selectedCell === null) return null;
     const sr = Math.floor(selectedCell / size);
     const sc = selectedCell % size;
     return { sr, sc, selectedCell };
-  }, [selectedCell, size]);
+  }, [selectedCell, size, readOnly]);
 
-  // 对角线格子集合
   const diagCells = useMemo(() => {
     if (variantType !== "diagonal") return null;
     const main = new Set<number>();
@@ -112,40 +111,40 @@ function SudokuGridBase({ puzzle }: Props) {
   const oddEven = vdata.oddEven;
   const fortress = vdata.fortress;
   const irregular = vdata.irregular;
+  const bigSmall = vdata.bigSmall;
+  const errorSet = useMemo(() => new Set(errorCells), [errorCells]);
+  const demoHL = useMemo(() => new Set(highlightCells ?? []), [highlightCells]);
 
-  // 连续数独粗线标记
   const consecPairs = useMemo(() => {
     if (variantType !== "consecutive" || !vdata.consecutive) return null;
-    return (vdata.consecutive as ConsecutiveData).pairs;
+    return vdata.consecutive.pairs;
   }, [variantType, vdata]);
 
-  // 五六数独圆圈
   const sum56 = useMemo(() => {
     if (variantType !== "sum_56" || !vdata.sum56) return null;
-    return (vdata.sum56 as Sum56Data).sums;
+    return vdata.sum56.sums;
   }, [variantType, vdata]);
 
-  const cellSize = size <= 4 ? 72 : size <= 6 ? 56 : 42;
-  const fontSize = size <= 4 ? 32 : size <= 6 ? 26 : 20;
-
   return (
-    <div className="relative inline-block">
-      {/* 外框 */}
+    <div ref={shellRef} className={`relative w-full ${className}`}>
       <div
-        className="grid rounded-xl overflow-hidden bg-white shadow-lg"
+        className="mx-auto grid overflow-hidden rounded-2xl bg-surface-elevated shadow-card"
         style={{
+          width: cellSize * size + thick * 2,
           gridTemplateColumns: `repeat(${size}, ${cellSize}px)`,
-          borderTop: "3px solid #1e293b",
-          borderLeft: "3px solid #1e293b",
-          borderRight: "3px solid #1e293b",
+          border: `${thick}px solid #1a2e28`,
         }}
       >
         {Array.from({ length: total }).map((_, i) => {
           const row = Math.floor(i / size);
           const col = i % size;
-          const value = userGrid[i];
-          const isGiven = givensArr[i] !== 0;
-          const isSelected = selectedCell === i;
+          const value = grid[i] ?? 0;
+          const isGiven = displayGrid
+            ? puzzle.givens[i] !== 0
+            : (givensArr[i] ?? puzzle.givens[i]) !== 0;
+          const isSelected = !readOnly && selectedCell === i;
+          const isError = !readOnly && errorSet.has(i) && !isGiven;
+          const isFlash = !readOnly && flashError === i;
           const inSameArea =
             highlightInfo &&
             (row === highlightInfo.sr ||
@@ -155,47 +154,51 @@ function SudokuGridBase({ puzzle }: Props) {
                 : Math.floor(row / boxRows) === Math.floor(highlightInfo.sr / boxRows) &&
                   Math.floor(col / boxCols) === Math.floor(highlightInfo.sc / boxCols)));
           const sameValue = selectedValue !== 0 && value === selectedValue && value !== 0;
-
-          // 对角线高亮
           const onMainDiag = diagCells?.main.has(i);
           const onAntiDiag = diagCells?.anti.has(i);
+          const isDemoHL = demoHL.has(i);
 
-          // 背景色
-          let bg = "bg-white";
-          if (isSelected) bg = "bg-brand-200";
-          else if (sameValue) bg = "bg-brand-100";
-          else if (inSameArea) bg = "bg-slate-50";
+          let bg = "bg-surface-elevated";
+          if (isFlash) bg = "bg-danger-soft";
+          else if (isError) bg = "bg-danger-soft/70";
+          else if (isDemoHL) bg = "bg-accent-100";
+          else if (isSelected) bg = "bg-accent-200";
+          else if (sameValue) bg = "bg-accent-100";
+          else if (inSameArea) bg = "bg-surface";
 
-          // 堡垒灰格
-          const isGreyCell = fortress?.grey[i] === 1;
-          if (isGreyCell && !isSelected) bg = "bg-slate-200";
-          if (isGreyCell && isSelected) bg = "bg-brand-300";
+          const isGreyFortress = fortress?.grey[i] === 1;
+          const isGreyBig = bigSmall?.grey[i] === 1;
+          if ((isGreyFortress || isGreyBig) && !isSelected && !isError && !isFlash && !isDemoHL) {
+            bg = "bg-surface-sunken";
+          }
+          if ((isGreyFortress || isGreyBig) && isSelected) bg = "bg-accent-300";
 
-          // 奇偶标记
           const parity = oddEven?.parity[i];
-
           const cands = candidates[i];
-          const showCandidates = !value && cands && cands.size > 0;
+          const showCandidates = !readOnly && !value && cands && cands.size > 0;
 
           return (
             <div
               key={i}
-              className={`${bg} flex items-center justify-center cursor-pointer relative transition-colors`}
+              className={`${bg} relative flex items-center justify-center transition-colors duration-150 ${
+                readOnly ? "" : "cursor-pointer"
+              } ${isFlash ? "animate-pulse" : ""}`}
               style={{
                 ...getBorderStyle(row, col, size, boxRows, boxCols, irregular),
-                width: `${cellSize}px`,
-                height: `${cellSize}px`,
+                width: cellSize,
+                height: cellSize,
               }}
-              onClick={() => selectCell(i)}
+              onClick={() => {
+                if (!readOnly) selectCell(i);
+              }}
             >
-              {/* 对角线标记 */}
               {onMainDiag && (
                 <div
-                  className="absolute pointer-events-none"
+                  className="pointer-events-none absolute"
                   style={{
                     width: `${cellSize * Math.SQRT2}px`,
                     height: "1.5px",
-                    background: "rgba(168,85,247,0.25)",
+                    background: "rgba(147,51,234,0.28)",
                     transform: "rotate(45deg)",
                     transformOrigin: "center",
                   }}
@@ -203,58 +206,60 @@ function SudokuGridBase({ puzzle }: Props) {
               )}
               {onAntiDiag && (
                 <div
-                  className="absolute pointer-events-none"
+                  className="pointer-events-none absolute"
                   style={{
                     width: `${cellSize * Math.SQRT2}px`,
                     height: "1.5px",
-                    background: "rgba(168,85,247,0.25)",
+                    background: "rgba(147,51,234,0.28)",
                     transform: "rotate(-45deg)",
                     transformOrigin: "center",
                   }}
                 />
               )}
 
-              {/* 奇偶标记 */}
               {parity === 1 && (
                 <div
-                  className="absolute pointer-events-none rounded-full"
-                  style={{ width: "70%", height: "70%", border: "2px solid #3b82f6" }}
+                  className="pointer-events-none absolute rounded-full"
+                  style={{ width: "70%", height: "70%", border: "2px solid #0891b2" }}
                 />
               )}
               {parity === 2 && (
                 <div
-                  className="absolute pointer-events-none"
-                  style={{ width: "70%", height: "70%", border: "2px solid #3b82f6", borderRadius: "3px" }}
+                  className="pointer-events-none absolute"
+                  style={{
+                    width: "70%",
+                    height: "70%",
+                    border: "2px solid #0891b2",
+                    borderRadius: "3px",
+                  }}
                 />
               )}
 
-              {/* 数字 */}
               {value !== 0 && (
                 <span
-                  className="font-bold select-none relative z-10"
+                  className="relative z-10 select-none font-bold tabular"
                   style={{
-                    fontSize: `${fontSize}px`,
-                    color: isGiven ? "#1e293b" : "#4f46e5",
+                    fontSize,
+                    color: isError || isFlash ? "#dc2626" : isGiven ? "#1a2e28" : "#0d9488",
                   }}
                 >
                   {value}
                 </span>
               )}
 
-              {/* 候选数 */}
               {showCandidates && (
                 <div
-                  className="absolute inset-0 grid p-0.5 pointer-events-none"
+                  className="pointer-events-none absolute inset-0 grid p-0.5"
                   style={{
                     gridTemplateColumns: `repeat(${size <= 4 ? 2 : 3}, 1fr)`,
                     gridTemplateRows: `repeat(${size <= 4 ? 2 : 3}, 1fr)`,
-                    fontSize: `${size <= 4 ? 10 : size <= 6 ? 9 : 8}px`,
+                    fontSize: size <= 4 ? 10 : size <= 6 ? 9 : 8,
                   }}
                 >
                   {Array.from({ length: size <= 4 ? 4 : 9 }).map((_, ci) => {
                     const num = ci + 1;
                     return (
-                      <div key={num} className="flex items-center justify-center text-slate-400">
+                      <div key={num} className="flex items-center justify-center text-ink-faint">
                         {cands.has(num) ? num : ""}
                       </div>
                     );
@@ -266,23 +271,23 @@ function SudokuGridBase({ puzzle }: Props) {
         })}
       </div>
 
-      {/* 连续数独的粗线标记（覆盖在网格上） */}
-      {consecPairs && (
-        <ConsecutiveMarks pairs={consecPairs} size={size} cellSize={cellSize} />
-      )}
-
-      {/* 五六数独的圆圈标记 */}
+      {consecPairs && <ConsecutiveMarks pairs={consecPairs} size={size} cellSize={cellSize} />}
       {sum56 && <Sum56Marks sums={sum56} size={size} cellSize={cellSize} />}
-
-      {/* 杀手笼标记 */}
-      {vdata.killer && <KillerCageMarks data={vdata.killer as KillerData} size={size} cellSize={cellSize} />}
+      {vdata.killer && (
+        <KillerCageMarks data={vdata.killer as KillerData} size={size} cellSize={cellSize} />
+      )}
+      {vdata.thermometer && (
+        <ThermoMarks data={vdata.thermometer} size={size} cellSize={cellSize} />
+      )}
+      {vdata.greaterThan && (
+        <GTMarks data={vdata.greaterThan} size={size} cellSize={cellSize} />
+      )}
+      {vdata.ratio && <RatioMarks data={vdata.ratio} size={size} cellSize={cellSize} />}
     </div>
   );
 }
 
 export const SudokuGrid = memo(SudokuGridBase);
-
-// ─── 变体标记子组件 ───
 
 function ConsecutiveMarks({
   pairs,
@@ -306,11 +311,11 @@ function ConsecutiveMarks({
     marks.push(
       <div
         key={pair}
-        className="absolute bg-slate-800 pointer-events-none"
+        className="pointer-events-none absolute bg-ink"
         style={
           isHorizontal
-            ? { left: `${left - 2}px`, top: `${top + 4}px`, width: "3px", height: `${cellSize - 8}px` }
-            : { left: `${left + 4}px`, top: `${top - 2}px`, width: `${cellSize - 8}px`, height: "3px" }
+            ? { left: left - 2, top: top + 4, width: 3, height: cellSize - 8 }
+            : { left: left + 4, top: top - 2, width: cellSize - 8, height: 3 }
         }
       />,
     );
@@ -338,14 +343,8 @@ function Sum56Marks({
     marks.push(
       <div
         key={pair}
-        className="absolute rounded-full bg-amber-100 border border-amber-400 flex items-center justify-center pointer-events-none font-bold text-amber-700"
-        style={{
-          left: `${left - 11}px`,
-          top: `${top - 11}px`,
-          width: "22px",
-          height: "22px",
-          fontSize: "11px",
-        }}
+        className="pointer-events-none absolute flex items-center justify-center rounded-full border border-warning bg-warning-soft font-bold text-warning"
+        style={{ left: left - 11, top: top - 11, width: 22, height: 22, fontSize: 11 }}
       >
         {sum}
       </div>,
@@ -366,41 +365,168 @@ function KillerCageMarks({
   const marks: React.ReactNode[] = [];
   for (let ci = 0; ci < data.cages.length; ci++) {
     const cage = data.cages[ci];
-    // 找到笼子中最小 row/col 的格子放 sum 标签
     let minCell = cage.cells[0];
-    for (const c of cage.cells) {
-      if (c < minCell) minCell = c;
-    }
+    for (const c of cage.cells) if (c < minCell) minCell = c;
     const mr = Math.floor(minCell / size);
     const mc = minCell % size;
     marks.push(
       <div
         key={`sum-${ci}`}
-        className="absolute pointer-events-none text-[10px] font-bold text-red-600 z-20"
-        style={{ left: `${mc * cellSize + 2}px`, top: `${mr * cellSize + 1}px` }}
+        className="pointer-events-none absolute z-20 text-[10px] font-bold text-danger"
+        style={{ left: mc * cellSize + 2, top: mr * cellSize + 1 }}
       >
         {cage.sum}
       </div>,
     );
-    // 每个格子的虚线边框
     for (const cell of cage.cells) {
       const r = Math.floor(cell / size);
       const c = cell % size;
       marks.push(
         <div
           key={`cage-${ci}-${cell}`}
-          className="absolute pointer-events-none"
+          className="pointer-events-none absolute"
           style={{
-            left: `${c * cellSize + 1}px`,
-            top: `${r * cellSize + 1}px`,
-            width: `${cellSize - 2}px`,
-            height: `${cellSize - 2}px`,
+            left: c * cellSize + 1,
+            top: r * cellSize + 1,
+            width: cellSize - 2,
+            height: cellSize - 2,
             border: "1.5px dashed #dc2626",
-            borderRadius: "4px",
+            borderRadius: 4,
           }}
         />,
       );
     }
+  }
+  return <>{marks}</>;
+}
+
+function ThermoMarks({
+  data,
+  size,
+  cellSize,
+}: {
+  data: ThermometerData;
+  size: number;
+  cellSize: number;
+}) {
+  const marks: React.ReactNode[] = [];
+  for (let ti = 0; ti < data.thermos.length; ti++) {
+    const cells = data.thermos[ti].cells;
+    for (let i = 0; i < cells.length; i++) {
+      const cell = cells[i];
+      const r = Math.floor(cell / size);
+      const c = cell % size;
+      const cx = c * cellSize + cellSize / 2;
+      const cy = r * cellSize + cellSize / 2;
+      if (i === 0) {
+        marks.push(
+          <div
+            key={`bulb-${ti}`}
+            className="pointer-events-none absolute rounded-full bg-danger/25 ring-2 ring-danger/40"
+            style={{ left: cx - 10, top: cy - 10, width: 20, height: 20 }}
+          />,
+        );
+      }
+      if (i < cells.length - 1) {
+        const next = cells[i + 1];
+        const nr = Math.floor(next / size);
+        const nc = next % size;
+        const nx = nc * cellSize + cellSize / 2;
+        const ny = nr * cellSize + cellSize / 2;
+        const dx = nx - cx;
+        const dy = ny - cy;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+        marks.push(
+          <div
+            key={`seg-${ti}-${i}`}
+            className="pointer-events-none absolute origin-left bg-danger/30"
+            style={{
+              left: cx,
+              top: cy - 2,
+              width: len,
+              height: 4,
+              transform: `rotate(${angle}deg)`,
+              borderRadius: 2,
+            }}
+          />,
+        );
+      }
+    }
+  }
+  return <>{marks}</>;
+}
+
+function GTMarks({
+  data,
+  size,
+  cellSize,
+}: {
+  data: { horizontal: Map<string, string>; vertical: Map<string, string> };
+  size: number;
+  cellSize: number;
+}) {
+  const marks: React.ReactNode[] = [];
+  for (const [key, sym] of data.horizontal) {
+    const [r, c] = key.split(",").map(Number);
+    marks.push(
+      <div
+        key={`h-${key}`}
+        className="pointer-events-none absolute z-20 text-[11px] font-bold text-ink-muted"
+        style={{
+          left: (c + 1) * cellSize - 6,
+          top: r * cellSize + cellSize / 2 - 8,
+        }}
+      >
+        {sym}
+      </div>,
+    );
+  }
+  for (const [key, sym] of data.vertical) {
+    const [r, c] = key.split(",").map(Number);
+    const ch = sym === "v" ? "∨" : "∧";
+    marks.push(
+      <div
+        key={`v-${key}`}
+        className="pointer-events-none absolute z-20 text-[11px] font-bold text-ink-muted"
+        style={{
+          left: c * cellSize + cellSize / 2 - 5,
+          top: (r + 1) * cellSize - 8,
+        }}
+      >
+        {ch}
+      </div>,
+    );
+  }
+  return <>{marks}</>;
+}
+
+function RatioMarks({
+  data,
+  size,
+  cellSize,
+}: {
+  data: { ratios: Map<string, string> };
+  size: number;
+  cellSize: number;
+}) {
+  const marks: React.ReactNode[] = [];
+  for (const [pair, ratio] of data.ratios) {
+    const [a, b] = pair.split("-").map(Number);
+    const ra = Math.floor(a / size);
+    const ca = a % size;
+    const isH = Math.floor(b / size) === ra;
+    const left = isH ? (ca + 1) * cellSize - 10 : ca * cellSize + cellSize / 2 - 10;
+    const top = isH ? ra * cellSize + cellSize / 2 - 8 : (ra + 1) * cellSize - 8;
+    marks.push(
+      <div
+        key={pair}
+        className="pointer-events-none absolute z-20 rounded bg-accent-50 px-0.5 text-[9px] font-bold text-accent-700"
+        style={{ left, top }}
+      >
+        {ratio}
+      </div>,
+    );
   }
   return <>{marks}</>;
 }

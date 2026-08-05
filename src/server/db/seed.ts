@@ -1,15 +1,16 @@
 /**
- * 数据库种子脚本
+ * 数据库种子脚本（可重复运行）
  * 运行：bun src/server/db/seed.ts
  */
+import { eq } from "drizzle-orm";
 import { db, schema } from "./client";
 import { PUZZLE_TYPES } from "../../shared/puzzle-types";
 import { LESSONS } from "../../shared/lessons";
 
-console.log("🌱 开始初始化数据库...");
+console.log("🌱 开始初始化 / 同步数据库...");
 
 // ─── 题型 ───
-console.log(`  插入 ${PUZZLE_TYPES.length} 个题型...`);
+console.log(`  同步 ${PUZZLE_TYPES.length} 个题型...`);
 for (const pt of PUZZLE_TYPES) {
   db.insert(schema.puzzleTypes)
     .values({
@@ -27,26 +28,60 @@ for (const pt of PUZZLE_TYPES) {
       sortOrder: pt.sortOrder,
       isFinals: pt.isFinals,
     })
-    .onConflictDoNothing()
-    .run();
-}
-
-// ─── 课程 ───
-console.log(`  插入 ${LESSONS.length} 节课程...`);
-for (const lesson of LESSONS) {
-  db.insert(schema.lessons)
-    .values({
-      typeCode: lesson.typeCode,
-      phase: lesson.phase,
-      title: lesson.title,
-      sortOrder: lesson.sortOrder,
-      contentJson: JSON.stringify(lesson.sections),
+    .onConflictDoUpdate({
+      target: schema.puzzleTypes.code,
+      set: {
+        name: pt.name,
+        gridSize: pt.gridSize,
+        boxRows: pt.boxRows,
+        boxCols: pt.boxCols,
+        variantType: pt.variantType,
+        description: pt.description,
+        rules: pt.rules,
+        icon: pt.icon,
+        color: pt.color,
+        phase: pt.phase,
+        sortOrder: pt.sortOrder,
+        isFinals: pt.isFinals,
+      },
     })
     .run();
 }
 
+// ─── 课程（按 sortOrder 幂等）───
+console.log(`  同步 ${LESSONS.length} 节课程...`);
+for (const lesson of LESSONS) {
+  const existing = db
+    .select()
+    .from(schema.lessons)
+    .where(eq(schema.lessons.sortOrder, lesson.sortOrder))
+    .get();
+
+  if (existing) {
+    db.update(schema.lessons)
+      .set({
+        typeCode: lesson.typeCode,
+        phase: lesson.phase,
+        title: lesson.title,
+        contentJson: JSON.stringify(lesson.sections),
+      })
+      .where(eq(schema.lessons.id, existing.id))
+      .run();
+  } else {
+    db.insert(schema.lessons)
+      .values({
+        typeCode: lesson.typeCode,
+        phase: lesson.phase,
+        title: lesson.title,
+        sortOrder: lesson.sortOrder,
+        contentJson: JSON.stringify(lesson.sections),
+      })
+      .run();
+  }
+}
+
 // ─── 默认用户 ───
-console.log("  创建默认用户...");
+console.log("  确保默认用户...");
 db.insert(schema.users)
   .values({
     id: 1,
@@ -57,8 +92,8 @@ db.insert(schema.users)
   .onConflictDoNothing()
   .run();
 
-// ─── 课程进度（第一节解锁）───
-console.log("  初始化课程进度...");
+// ─── 课程进度 ───
+console.log("  同步课程进度...");
 const allLessons = db.select().from(schema.lessons).all();
 for (const lesson of allLessons) {
   const status = lesson.sortOrder === 1 ? "available" : "locked";
@@ -72,8 +107,8 @@ for (const lesson of allLessons) {
     .run();
 }
 
-// ─── 技能统计初始化 ───
-console.log("  初始化技能统计...");
+// ─── 技能统计 ───
+console.log("  同步技能统计...");
 for (const pt of PUZZLE_TYPES) {
   db.insert(schema.skillStats)
     .values({
@@ -84,7 +119,7 @@ for (const pt of PUZZLE_TYPES) {
     .run();
 }
 
-console.log("✅ 数据库初始化完成！");
+console.log("✅ 数据库同步完成！");
 console.log(`   题型: ${PUZZLE_TYPES.length} 个`);
-console.log(`   课程: ${LESSONS.length} 节`);
+console.log(`   课程: ${allLessons.length} 节`);
 console.log("   默认用户 ID: 1");

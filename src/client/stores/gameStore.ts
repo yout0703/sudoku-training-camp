@@ -1,48 +1,90 @@
 /**
  * 游戏状态管理（Zustand）
- * 管理当前盘面、选中格子、候选数、错误、计时
+ * 盘面、选中、候选数、错误、撤销/重做、提示
  */
 import { create } from "zustand";
 import type { PuzzleDTO } from "../../shared/api-types";
 
+interface HistoryEntry {
+  userGrid: number[];
+  candidates: Set<number>[];
+  mistakes: number;
+  errorCells: number[];
+}
+
 interface GameStore {
-  // 题目数据
   puzzle: PuzzleDTO | null;
-  givens: number[]; // 初始提示（不可修改）
+  givens: number[];
   solution: number[];
-  userGrid: number[]; // 用户当前盘面
-  candidates: Set<number>[]; // 每格的候选数
-  // UI 状态
+  userGrid: number[];
+  candidates: Set<number>[];
   selectedCell: number | null;
-  noteMode: boolean; // 候选数模式
+  noteMode: boolean;
   mistakes: number;
   hintsUsed: number;
   startTime: number;
-  // 设置题目
+  /** 当前标红的错误格 */
+  errorCells: number[];
+  /** 刚填错的高亮（短暂） */
+  flashError: number | null;
+  history: HistoryEntry[];
+  future: HistoryEntry[];
+
   loadPuzzle: (puzzle: PuzzleDTO) => void;
-  // 交互
   selectCell: (cell: number | null) => void;
   inputNumber: (num: number) => void;
   eraseCell: () => void;
   toggleNoteMode: () => void;
-  // 检查
+  undo: () => void;
+  redo: () => void;
+  useHint: () => boolean;
+  clearFlash: () => void;
   isCellGiven: (cell: number) => boolean;
-  isCellCorrect: (cell: number) => boolean;
   isComplete: () => boolean;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
   reset: () => void;
 }
 
+function cloneCands(cands: Set<number>[]): Set<number>[] {
+  return cands.map((s) => new Set(s));
+}
+
+function snapshot(s: {
+  userGrid: number[];
+  candidates: Set<number>[];
+  mistakes: number;
+  errorCells: number[];
+}): HistoryEntry {
+  return {
+    userGrid: [...s.userGrid],
+    candidates: cloneCands(s.candidates),
+    mistakes: s.mistakes,
+    errorCells: [...s.errorCells],
+  };
+}
+
+function emptyState() {
+  return {
+    puzzle: null as PuzzleDTO | null,
+    givens: [] as number[],
+    solution: [] as number[],
+    userGrid: [] as number[],
+    candidates: [] as Set<number>[],
+    selectedCell: null as number | null,
+    noteMode: false,
+    mistakes: 0,
+    hintsUsed: 0,
+    startTime: 0,
+    errorCells: [] as number[],
+    flashError: null as number | null,
+    history: [] as HistoryEntry[],
+    future: [] as HistoryEntry[],
+  };
+}
+
 export const useGameStore = create<GameStore>((set, get) => ({
-  puzzle: null,
-  givens: [],
-  solution: [],
-  userGrid: [],
-  candidates: [],
-  selectedCell: null,
-  noteMode: false,
-  mistakes: 0,
-  hintsUsed: 0,
-  startTime: 0,
+  ...emptyState(),
 
   loadPuzzle: (puzzle) => {
     const size = puzzle.meta.size;
@@ -58,74 +100,173 @@ export const useGameStore = create<GameStore>((set, get) => ({
       mistakes: 0,
       hintsUsed: 0,
       startTime: Date.now(),
+      errorCells: [],
+      flashError: null,
+      history: [],
+      future: [],
     });
   },
 
-  selectCell: (cell) => set({ selectedCell: cell }),
+  selectCell: (cell) => set({ selectedCell: cell, flashError: null }),
 
   inputNumber: (num) => {
-    const { selectedCell, userGrid, givens, candidates, noteMode, puzzle } = get();
+    const state = get();
+    const { selectedCell, userGrid, givens, candidates, noteMode, puzzle, solution } = state;
     if (selectedCell === null || !puzzle) return;
-    if (givens[selectedCell] !== 0) return; // 不能修改提示数
+    if (givens[selectedCell] !== 0) return;
+
+    const prev = snapshot(state);
 
     if (noteMode) {
-      // 候选数模式：切换
-      const newCands = [...candidates];
+      const newCands = cloneCands(candidates);
       const s = new Set(newCands[selectedCell]);
       if (s.has(num)) s.delete(num);
       else s.add(num);
       newCands[selectedCell] = s;
-      set({ candidates: newCands });
-    } else {
-      // 填数模式
-      const newGrid = [...userGrid];
-      newGrid[selectedCell] = num;
-      // 清除该格的候选数
-      const newCands = [...candidates];
-      newCands[selectedCell] = new Set<number>();
-      set({ userGrid: newGrid, candidates: newCands });
+      // 候选数不计入错误
+      const newErrors = state.errorCells.filter((c) => c !== selectedCell);
+      set({
+        candidates: newCands,
+        errorCells: newErrors,
+        history: [...state.history, prev].slice(-50),
+        future: [],
+        flashError: null,
+      });
+      return;
     }
+
+    const newGrid = [...userGrid];
+    newGrid[selectedCell] = num;
+    const newCands = cloneCands(candidates);
+    newCands[selectedCell] = new Set();
+
+    const correct = solution.length > 0 ? solution[selectedCell] === num : true;
+    let mistakes = state.mistakes;
+    let errorCells = state.errorCells.filter((c) => c !== selectedCell);
+    let flashError: number | null = null;
+
+    if (!correct) {
+      mistakes += 1;
+      if (!errorCells.includes(selectedCell)) errorCells = [...errorCells, selectedCell];
+      flashError = selectedCell;
+    }
+
+    set({
+      userGrid: newGrid,
+      candidates: newCands,
+      mistakes,
+      errorCells,
+      flashError,
+      history: [...state.history, prev].slice(-50),
+      future: [],
+    });
   },
 
   eraseCell: () => {
-    const { selectedCell, userGrid, givens, candidates } = get();
+    const state = get();
+    const { selectedCell, userGrid, givens, candidates } = state;
     if (selectedCell === null) return;
     if (givens[selectedCell] !== 0) return;
+    if (userGrid[selectedCell] === 0 && candidates[selectedCell].size === 0) return;
 
+    const prev = snapshot(state);
     const newGrid = [...userGrid];
     newGrid[selectedCell] = 0;
-    const newCands = [...candidates];
-    newCands[selectedCell] = new Set<number>();
-    set({ userGrid: newGrid, candidates: newCands });
+    const newCands = cloneCands(candidates);
+    newCands[selectedCell] = new Set();
+    const errorCells = state.errorCells.filter((c) => c !== selectedCell);
+
+    set({
+      userGrid: newGrid,
+      candidates: newCands,
+      errorCells,
+      flashError: null,
+      history: [...state.history, prev].slice(-50),
+      future: [],
+    });
   },
 
   toggleNoteMode: () => set((s) => ({ noteMode: !s.noteMode })),
 
-  isCellGiven: (cell) => get().givens[cell] !== 0,
-
-  isCellCorrect: (cell) => {
-    const { userGrid, puzzle } = get();
-    if (!puzzle) return true;
-    // 不做前端验证（解答不在前端），只检查是否填满
-    return userGrid[cell] !== 0;
+  undo: () => {
+    const state = get();
+    if (state.history.length === 0) return;
+    const prev = state.history[state.history.length - 1];
+    const current = snapshot(state);
+    set({
+      userGrid: prev.userGrid,
+      candidates: prev.candidates,
+      mistakes: prev.mistakes,
+      errorCells: prev.errorCells,
+      flashError: null,
+      history: state.history.slice(0, -1),
+      future: [current, ...state.future].slice(0, 50),
+    });
   },
 
+  redo: () => {
+    const state = get();
+    if (state.future.length === 0) return;
+    const next = state.future[0];
+    const current = snapshot(state);
+    set({
+      userGrid: next.userGrid,
+      candidates: next.candidates,
+      mistakes: next.mistakes,
+      errorCells: next.errorCells,
+      flashError: null,
+      history: [...state.history, current],
+      future: state.future.slice(1),
+    });
+  },
+
+  useHint: () => {
+    const state = get();
+    const { userGrid, solution, givens, selectedCell, candidates } = state;
+    if (!solution.length) return false;
+
+    // 优先当前选中空格，否则找第一个空/错误格
+    let target = selectedCell;
+    if (target === null || givens[target] !== 0 || userGrid[target] === solution[target]) {
+      target = userGrid.findIndex((v, i) => givens[i] === 0 && v !== solution[i]);
+    }
+    if (target < 0) return false;
+
+    const prev = snapshot(state);
+    const newGrid = [...userGrid];
+    newGrid[target] = solution[target];
+    const newCands = cloneCands(candidates);
+    newCands[target] = new Set();
+    const errorCells = state.errorCells.filter((c) => c !== target);
+
+    set({
+      userGrid: newGrid,
+      candidates: newCands,
+      selectedCell: target,
+      errorCells,
+      flashError: null,
+      hintsUsed: state.hintsUsed + 1,
+      history: [...state.history, prev].slice(-50),
+      future: [],
+    });
+    return true;
+  },
+
+  clearFlash: () => set({ flashError: null }),
+
+  isCellGiven: (cell) => get().givens[cell] !== 0,
+
   isComplete: () => {
-    const { userGrid } = get();
+    const { userGrid, solution } = get();
+    if (!userGrid.length) return false;
+    if (solution.length === userGrid.length) {
+      return userGrid.every((v, i) => v === solution[i]);
+    }
     return userGrid.every((v) => v !== 0);
   },
 
-  reset: () =>
-    set({
-      puzzle: null,
-      givens: [],
-      solution: [],
-      userGrid: [],
-      candidates: [],
-      selectedCell: null,
-      noteMode: false,
-      mistakes: 0,
-      hintsUsed: 0,
-      startTime: 0,
-    }),
+  canUndo: () => get().history.length > 0,
+  canRedo: () => get().future.length > 0,
+
+  reset: () => set(emptyState()),
 }));

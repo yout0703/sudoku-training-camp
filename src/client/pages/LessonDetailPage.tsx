@@ -1,10 +1,14 @@
 /**
- * 课程详情页
+ * 课程详情 + 交互演示
  */
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { getPuzzleType } from "../../shared/puzzle-types";
+import { Page, Button, LoadingPage } from "../components/ui/primitives";
+import { IconBack } from "../components/ui/Icons";
+import { PuzzleTypeIcon } from "../components/ui/PuzzleTypeIcon";
+import { LessonDemo, getDemoForLesson } from "../components/LessonDemo";
 
 interface LessonSection {
   type: string;
@@ -22,12 +26,13 @@ interface LessonDetail {
   status: string;
 }
 
-const SECTION_STYLES: Record<string, { bg: string; border: string; icon: string }> = {
-  intro: { bg: "bg-blue-50", border: "border-blue-200", icon: "💡" },
-  rule: { bg: "bg-purple-50", border: "border-purple-200", icon: "📋" },
-  technique: { bg: "bg-green-50", border: "border-green-200", icon: "🎯" },
-  tip: { bg: "bg-amber-50", border: "border-amber-200", icon: "⚡" },
-  practice: { bg: "bg-pink-50", border: "border-pink-200", icon: "✏️" },
+/** 统一浅色系 + 左侧色条区分类型，避免彩虹卡片 */
+const SECTION_META: Record<string, { label: string; bar: string }> = {
+  intro: { label: "导入", bar: "bg-accent-400" },
+  rule: { label: "规则", bar: "bg-accent-600" },
+  technique: { label: "技巧", bar: "bg-accent-700" },
+  tip: { label: "窍门", bar: "bg-warning" },
+  practice: { label: "练习", bar: "bg-success" },
 };
 
 export function LessonDetailPage() {
@@ -40,7 +45,6 @@ export function LessonDetailPage() {
     api.getLesson(parseInt(id!)).then((l) => {
       setLesson(l as LessonDetail);
       setLoading(false);
-      // 自动标记为进行中
       if (l.status === "available") {
         api.updateLesson(l.id, "in_progress");
       }
@@ -54,7 +58,6 @@ export function LessonDetailPage() {
   const handleComplete = () => {
     if (!lesson) return;
     api.updateLesson(lesson.id, "completed").then(() => {
-      // 跳转到对应题型的练习
       if (lesson.typeCode) {
         nav(`/practice/${lesson.typeCode}`);
       } else {
@@ -63,64 +66,82 @@ export function LessonDetailPage() {
     });
   };
 
-  if (loading || !lesson) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-4xl animate-bounce">📖</div>
-      </div>
-    );
-  }
+  if (loading || !lesson) return <LoadingPage />;
 
   const typeDef = lesson.typeCode ? getPuzzleType(lesson.typeCode) : null;
+  const demo = getDemoForLesson(lesson.typeCode, lesson.title);
+
+  // 在第一段 technique 后插入演示
+  const techIdx = lesson.sections.findIndex((s) => s.type === "technique");
+  const insertAfter = techIdx >= 0 ? techIdx : Math.min(1, lesson.sections.length - 1);
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 pb-24">
-      {/* 返回 */}
+    <Page className="!pb-32">
       <button
+        type="button"
         onClick={() => nav("/learn")}
-        className="mb-4 flex items-center gap-1 text-slate-500 text-sm active:scale-95"
+        className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-ink-muted transition-colors active:text-ink"
       >
-        ← 返回课程列表
+        <IconBack className="h-4 w-4" />
+        返回课程列表
       </button>
 
-      {/* 标题 */}
-      <div className="mb-6">
-        {typeDef && <div className="text-4xl mb-2">{typeDef.icon}</div>}
-        <h1 className="text-2xl font-bold text-slate-800">{lesson.title}</h1>
+      <header className="mb-6">
         {typeDef && (
-          <p className="text-sm text-slate-400 mt-1">
+          <div className="mb-2">
+            <PuzzleTypeIcon code={typeDef.code} withBg size={28} />
+          </div>
+        )}
+        <h1 className="page-title">{lesson.title}</h1>
+        {typeDef && (
+          <p className="page-subtitle">
             {typeDef.name} · {typeDef.description}
           </p>
         )}
-      </div>
+      </header>
 
-      {/* 课程内容 */}
-      <div className="space-y-4 mb-8">
+      <div className="mb-8 space-y-3">
         {lesson.sections.map((section, i) => {
-          const style = SECTION_STYLES[section.type] ?? SECTION_STYLES.intro;
+          const meta = SECTION_META[section.type] ?? SECTION_META.intro;
           return (
-            <div key={i} className={`${style.bg} ${style.border} border-2 rounded-2xl p-5`}>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xl">{style.icon}</span>
-                <h3 className="font-bold text-slate-700">{section.title}</h3>
-              </div>
-              <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-line">{section.content}</p>
+            <div key={i}>
+              <article className="overflow-hidden rounded-2xl bg-surface-elevated shadow-card">
+                <div className="flex">
+                  <div className={`w-1 shrink-0 ${meta.bar}`} aria-hidden />
+                  <div className="flex-1 p-4">
+                    <div className="mb-1.5 flex items-center gap-2">
+                      <span className="text-xs font-semibold text-ink-faint">{meta.label}</span>
+                      <h3 className="text-sm font-bold text-ink">{section.title}</h3>
+                    </div>
+                    <p className="select-text whitespace-pre-line text-sm leading-relaxed text-ink-muted">
+                      {section.content}
+                    </p>
+                  </div>
+                </div>
+              </article>
+              {demo && i === insertAfter && (
+                <div className="mt-3">
+                  <LessonDemo demo={demo} />
+                </div>
+              )}
             </div>
           );
         })}
+        {demo && lesson.sections.length === 0 && <LessonDemo demo={demo} />}
       </div>
 
-      {/* 完成按钮 */}
-      <div className="fixed bottom-20 left-0 right-0 px-4 z-40">
-        <div className="max-w-2xl mx-auto">
-          <button
+      <div className="fixed bottom-20 left-0 right-0 z-40 px-4 pb-[env(safe-area-inset-bottom)] md:bottom-24">
+        <div className="shell">
+          <Button
+            variant="primary"
+            block
             onClick={handleComplete}
-            className="w-full py-4 rounded-2xl bg-brand-500 text-white font-bold text-lg shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+            className="shadow-float !py-3.5 text-base md:!py-4 md:text-lg"
           >
-            {lesson.typeCode ? `完成课程，开始练习 →` : "完成课程 ✓"}
-          </button>
+            {lesson.typeCode ? "完成课程，开始练习" : "完成课程"}
+          </Button>
         </div>
       </div>
-    </div>
+    </Page>
   );
 }

@@ -40,7 +40,9 @@ export type VariantType =
   | "arrow"
   | "extra_region"
   | "big_small"
-  | "connected";
+  | "connected"
+  | "ratio"
+  | "product";
 
 /** 难度等级 */
 export type Difficulty = "easy" | "medium" | "hard" | "expert";
@@ -155,6 +157,12 @@ export interface ArrowData {
   arrows: { circle: number; body: number[] }[];
 }
 
+/** 比例数独：相邻格比值为 a/b */
+export interface RatioData {
+  /** "cellA-cellB" → "a/b" 例如 "1/2" */
+  ratios: Map<string, string>;
+}
+
 /** 所有变体数据的并集 */
 export interface VariantData {
   irregular?: IrregularData;
@@ -168,6 +176,7 @@ export interface VariantData {
   bigSmall?: BigSmallData;
   extraRegion?: ExtraRegionData;
   arrow?: ArrowData;
+  ratio?: RatioData;
 }
 
 /** 完整题目（含变体） */

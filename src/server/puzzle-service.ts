@@ -157,13 +157,117 @@ function computeSum56(solution: Int8Array, size: number): VariantData {
   return { sum56: { sums } };
 }
 
-function computeAntiKnight(): VariantData {
-  // 无马约束不需要额外数据（约束本身由规则定义）
-  return undefined;
+function computeBigSmall(solution: Int8Array, size: number): VariantData {
+  const half = size / 2;
+  const smallValues = Array.from({ length: half }, (_, i) => i + 1);
+  const bigValues = Array.from({ length: half }, (_, i) => half + i + 1);
+  const grey = new Int8Array(size * size);
+  for (let i = 0; i < size * size; i++) {
+    // 灰格 = 较大数
+    grey[i] = solution[i] > half ? 1 : 0;
+  }
+  return { bigSmall: { grey, bigValues, smallValues } };
 }
 
-function computeDiagonal(): VariantData {
-  return undefined; // 对角线约束由规则定义，无需额外数据
+function computeThermometer(solution: Int8Array, size: number, rng: RNG): VariantData {
+  const thermos: { cells: number[] }[] = [];
+  const used = new Set<number>();
+  const attempts = size <= 4 ? 2 : 3;
+
+  for (let t = 0; t < attempts; t++) {
+    // 随机起点，沿解递增方向延伸
+    let start = rng.int(0, size * size - 1);
+    let tries = 0;
+    while (used.has(start) && tries < 20) {
+      start = rng.int(0, size * size - 1);
+      tries++;
+    }
+    if (used.has(start)) continue;
+
+    const path = [start];
+    used.add(start);
+    let cur = start;
+    for (let step = 0; step < size - 1; step++) {
+      const r = Math.floor(cur / size);
+      const c = cur % size;
+      const neighbors = [
+        [r - 1, c],
+        [r + 1, c],
+        [r, c - 1],
+        [r, c + 1],
+      ]
+        .filter(([nr, nc]) => nr >= 0 && nr < size && nc >= 0 && nc < size)
+        .map(([nr, nc]) => nr * size + nc)
+        .filter((n) => !used.has(n) && solution[n] > solution[cur]);
+
+      if (neighbors.length === 0) break;
+      const next = rng.pick(neighbors);
+      path.push(next);
+      used.add(next);
+      cur = next;
+    }
+    if (path.length >= 2) thermos.push({ cells: path });
+  }
+
+  return { thermometer: { thermos } };
+}
+
+function computeGreaterThan(solution: Int8Array, size: number, rng: RNG): VariantData {
+  const horizontal = new Map<string, ">" | "<">();
+  const vertical = new Map<string, "^" | "v">();
+
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      const idx = r * size + c;
+      // 水平：与右邻
+      if (c + 1 < size && rng.next() < 0.55) {
+        const right = r * size + (c + 1);
+        horizontal.set(`${r},${c}`, solution[idx] > solution[right] ? ">" : "<");
+      }
+      // 垂直：与下邻
+      if (r + 1 < size && rng.next() < 0.55) {
+        const down = (r + 1) * size + c;
+        vertical.set(`${r},${c}`, solution[idx] > solution[down] ? "v" : "^");
+      }
+    }
+  }
+  return { greaterThan: { horizontal, vertical } };
+}
+
+function computeRatio(solution: Int8Array, size: number, rng: RNG): VariantData {
+  const ratios = new Map<string, string>();
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      const idx = r * size + c;
+      if (c + 1 < size && rng.next() < 0.35) {
+        const right = r * size + (c + 1);
+        const a = solution[idx];
+        const b = solution[right];
+        // 简化为既约比
+        const g = gcd(a, b);
+        ratios.set(`${idx}-${right}`, `${a / g}/${b / g}`);
+      }
+      if (r + 1 < size && rng.next() < 0.35) {
+        const down = (r + 1) * size + c;
+        const a = solution[idx];
+        const b = solution[down];
+        const g = gcd(a, b);
+        ratios.set(`${idx}-${down}`, `${a / g}/${b / g}`);
+      }
+    }
+  }
+  return { ratio: { ratios } };
+}
+
+function gcd(a: number, b: number): number {
+  a = Math.abs(a);
+  b = Math.abs(b);
+  while (b) {
+    const t = b;
+    b = a % b;
+    a = t;
+  }
+  return a || 1;
 }
 
 function computeKiller(solution: Int8Array, size: number, rng: RNG): VariantData {
@@ -314,6 +418,18 @@ export function generatePuzzle(
       break;
     case "irregular":
       data = computeIrregular(meta.size, rng);
+      break;
+    case "big_small":
+      data = computeBigSmall(fullGrid, meta.size);
+      break;
+    case "thermometer":
+      data = computeThermometer(fullGrid, meta.size, rng);
+      break;
+    case "greater_than":
+      data = computeGreaterThan(fullGrid, meta.size, rng);
+      break;
+    case "ratio":
+      data = computeRatio(fullGrid, meta.size, rng);
       break;
     case "anti_knight":
     case "diagonal":

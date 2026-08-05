@@ -343,4 +343,124 @@ export const LESSONS: LessonDef[] = [
       },
     ],
   },
+  {
+    typeCode: "big_small_4",
+    phase: 2,
+    title: "第十三课：大小数数独",
+    sortOrder: 13,
+    prerequisiteTitle: "第七课：杀手数独",
+    sections: [
+      {
+        type: "rule",
+        title: "灰大白小",
+        content: "大小数数独中：\n\n灰色格只能填较大的一半数字。四宫是 3、4；六宫是 4、5、6。\n白色格只能填较小的一半：四宫 1、2；六宫 1、2、3。\n\n标准行/列/宫规则仍然成立。",
+      },
+      {
+        type: "technique",
+        title: "先定奇偶范围",
+        content: "看到灰格，立刻排除小数；看到白格，立刻排除大数。候选数一下子少一半，再结合行列表排除会很快。",
+      },
+      {
+        type: "practice",
+        title: "大小数练习",
+        content: "先从四宫大小数开始练手感，再挑战六宫。",
+      },
+    ],
+  },
+  {
+    typeCode: "greater_than_4",
+    phase: 2,
+    title: "第十四课：不等号数独",
+    sortOrder: 14,
+    prerequisiteTitle: "第十三课：大小数数独",
+    sections: [
+      {
+        type: "rule",
+        title: "大小关系",
+        content: "相邻两格之间的 > 或 < 表示这两格数字的大小关系。标准规则仍然适用。",
+      },
+      {
+        type: "technique",
+        title: "链上推理",
+        content: "如果 A > B > C，那么 A 至少是 3（在 1-4 中）。把不等号串起来，能快速锁定端点的数字范围。",
+      },
+      {
+        type: "practice",
+        title: "不等号练习",
+        content: "做几道四宫不等号，熟悉符号方向。",
+      },
+    ],
+  },
+  {
+    typeCode: "thermometer_4",
+    phase: 2,
+    title: "第十五课：温度计数独",
+    sortOrder: 15,
+    prerequisiteTitle: "第十四课：不等号数独",
+    sections: [
+      {
+        type: "rule",
+        title: "从冷到热",
+        content: "温度计有一个圆点（球泡）和一条线。从圆点到末端，数字必须严格递增。",
+      },
+      {
+        type: "technique",
+        title: "长度决定范围",
+        content: "如果温度计有 3 格，最小可能是 1-2-3，最大可能是 2-3-4。结合行列表排除，能很快定下来。",
+      },
+      {
+        type: "practice",
+        title: "温度计练习",
+        content: "试试四宫温度计，观察递增链条。",
+      },
+    ],
+  },
+  {
+    typeCode: "ratio_6",
+    phase: 3,
+    title: "第十六课：比例数独",
+    sortOrder: 16,
+    prerequisiteTitle: "第十一课：堡垒数独",
+    sections: [
+      {
+        type: "rule",
+        title: "分数是比例",
+        content: "相邻两格之间的分数（如 1/2、2/3）表示两格数字的比例关系。例如 1/2 可能是 1 与 2，或 2 与 4，或 3 与 6。",
+      },
+      {
+        type: "technique",
+        title: "列出合法对",
+        content: "每个比例只有少数几对数字。先把可能对写出来，再看行列表能否排除，会比盲目试快很多。",
+      },
+      {
+        type: "practice",
+        title: "比例练习",
+        content: "挑战六宫比例数独！",
+      },
+    ],
+  },
+  {
+    typeCode: "killer_6",
+    phase: 3,
+    title: "第十七课：六宫杀手",
+    sortOrder: 17,
+    prerequisiteTitle: "第七课：杀手数独",
+    sections: [
+      {
+        type: "rule",
+        title: "更大的笼子",
+        content: "规则与四宫杀手相同：虚线笼内数字之和等于提示数，笼内不重复。六宫数字是 1-6，组合更多。",
+      },
+      {
+        type: "technique",
+        title: "21 法则",
+        content: "六宫每行/列/宫数字之和 = 21。用笼的和去减，可以反推剩余区域。",
+      },
+      {
+        type: "practice",
+        title: "六宫杀手练习",
+        content: "在四宫基础上加大盘面，巩固杀手技巧。",
+      },
+    ],
+  },
 ];

@@ -6,12 +6,43 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { PHASE_NAMES } from "../../shared/puzzle-types";
 import type { LessonDTO } from "../../shared/api-types";
+import {
+  Page,
+  PageHeader,
+  SectionLabel,
+  LoadingPage,
+  ProgressBar,
+} from "../components/ui/primitives";
+import { IconLock, IconPlay, IconCheck, IconChevronRight, IconBook } from "../components/ui/Icons";
 
-const STATUS_CONFIG: Record<string, { icon: string; color: string; bg: string }> = {
-  locked: { icon: "🔒", color: "text-slate-300", bg: "bg-slate-50" },
-  available: { icon: "▶️", color: "text-brand-600", bg: "bg-white" },
-  in_progress: { icon: "📖", color: "text-amber-600", bg: "bg-amber-50" },
-  completed: { icon: "✅", color: "text-green-600", bg: "bg-green-50" },
+const STATUS: Record<
+  string,
+  { icon: typeof IconLock; label: string; iconClass: string; cardClass: string }
+> = {
+  locked: {
+    icon: IconLock,
+    label: "先完成前面的课程",
+    iconClass: "bg-surface-sunken text-ink-faint",
+    cardClass: "opacity-55",
+  },
+  available: {
+    icon: IconPlay,
+    label: "可以开始",
+    iconClass: "bg-accent-50 text-accent-600",
+    cardClass: "",
+  },
+  in_progress: {
+    icon: IconBook,
+    label: "学习中",
+    iconClass: "bg-warning-soft text-warning",
+    cardClass: "ring-1 ring-warning/25",
+  },
+  completed: {
+    icon: IconCheck,
+    label: "已完成",
+    iconClass: "bg-success-soft text-success",
+    cardClass: "",
+  },
 };
 
 export function LearnPage() {
@@ -23,64 +54,73 @@ export function LearnPage() {
     api.getLessons().then(setLessons).finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-4xl animate-bounce">📚</div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingPage />;
 
   const phases = [1, 2, 3, 4];
   const totalCompleted = lessons.filter((l) => l.status === "completed").length;
+  const pct = lessons.length > 0 ? Math.round((totalCompleted / lessons.length) * 100) : 0;
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 pb-20">
-      <h1 className="text-2xl font-bold text-slate-800 mb-1">学习课程</h1>
-      <p className="text-slate-400 text-sm mb-6">
-        已完成 {totalCompleted}/{lessons.length} 节课
-      </p>
+    <Page>
+      <PageHeader
+        title="学习课程"
+        subtitle={`已完成 ${totalCompleted}/${lessons.length} 节 · 跟着路径一步步变强`}
+      />
+
+      <div className="card mb-6">
+        <div className="mb-2 flex items-center justify-between text-sm">
+          <span className="font-medium text-ink-muted">总进度</span>
+          <span className="tabular font-semibold text-accent-600">{pct}%</span>
+        </div>
+        <ProgressBar value={pct} />
+      </div>
 
       {phases.map((phase) => {
         const phaseLessons = lessons.filter((l) => l.phase === phase);
         if (phaseLessons.length === 0) return null;
 
         return (
-          <div key={phase} className="mb-6">
-            <h2 className="text-lg font-bold text-slate-700 mb-3">{PHASE_NAMES[phase]}</h2>
+          <section key={phase} className="mb-6">
+            <SectionLabel>{PHASE_NAMES[phase]}</SectionLabel>
             <div className="space-y-2">
-              {phaseLessons.map((lesson) => {
-                const cfg = STATUS_CONFIG[lesson.status] ?? STATUS_CONFIG.locked;
+              {phaseLessons.map((lesson, idx) => {
+                const cfg = STATUS[lesson.status] ?? STATUS.locked;
+                const Icon = cfg.icon;
                 const isLocked = lesson.status === "locked";
                 return (
                   <button
                     key={lesson.id}
+                    type="button"
                     disabled={isLocked}
                     onClick={() => nav(`/learn/${lesson.id}`)}
-                    className={`w-full ${cfg.bg} rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-3 transition-all
-                      ${isLocked ? "opacity-60" : "active:scale-[0.98]"}`}
+                    className={`card-interactive flex items-center gap-3 ${cfg.cardClass} ${
+                      isLocked ? "cursor-not-allowed active:scale-100" : ""
+                    }`}
                   >
-                    <span className="text-2xl">{cfg.icon}</span>
-                    <div className="flex-1 text-left">
-                      <div className="font-bold text-slate-700 text-sm">{lesson.title}</div>
-                      <div className="text-xs text-slate-400 mt-0.5">
-                        {lesson.status === "completed"
-                          ? "已完成"
-                          : lesson.status === "in_progress"
-                            ? "学习中..."
-                            : lesson.status === "available"
-                              ? "可以开始学习"
-                              : "需要先完成前面的课程"}
-                      </div>
+                    <div
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${cfg.iconClass}`}
+                    >
+                      <Icon className="h-5 w-5" />
                     </div>
-                    {!isLocked && <span className="text-slate-300">›</span>}
+                    <div className="min-w-0 flex-1 text-left">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-medium tabular text-ink-faint">
+                          {String(idx + 1).padStart(2, "0")}
+                        </span>
+                        <span className="truncate text-sm font-semibold text-ink">
+                          {lesson.title}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-ink-faint">{cfg.label}</p>
+                    </div>
+                    {!isLocked && <IconChevronRight className="h-5 w-5 shrink-0 text-ink-faint" />}
                   </button>
                 );
               })}
             </div>
-          </div>
+          </section>
         );
       })}
-    </div>
+    </Page>
   );
 }
