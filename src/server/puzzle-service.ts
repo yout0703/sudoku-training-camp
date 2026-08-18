@@ -10,6 +10,7 @@ import {
   DEFAULT_META,
   buildStructure,
   generateFullGrid,
+  generateAddSubPuzzle,
   digHoles,
   valBit,
   allMask,
@@ -398,7 +399,17 @@ export function generatePuzzle(
     fullGrid = generateFullGrid(struct, rng);
   }
 
-  // 2. 计算变体数据
+  // 2. 加减数独：笼约束是题目本身，单独生成（可无已知数）
+  if (variant === "add_sub") {
+    const addSub = generateAddSubPuzzle(fullGrid, meta, rng, difficulty);
+    return {
+      givens: addSub.givens,
+      solution: Array.from(fullGrid),
+      data: addSub.data,
+    };
+  }
+
+  // 3. 计算变体数据
   let data: VariantData | undefined;
   switch (variant) {
     case "odd_even":

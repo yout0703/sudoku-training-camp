@@ -107,6 +107,21 @@ for (const lesson of allLessons) {
     .run();
 }
 
+// 新课插在末尾时：上一节已完成则解锁，避免卡在 locked
+const progressRows = db.select().from(schema.lessonProgress).all();
+const progressByLesson = new Map(progressRows.map((p) => [p.lessonId, p]));
+const ordered = [...allLessons].sort((a, b) => a.sortOrder - b.sortOrder);
+for (let i = 1; i < ordered.length; i++) {
+  const prev = progressByLesson.get(ordered[i - 1].id);
+  const cur = progressByLesson.get(ordered[i].id);
+  if (prev?.status === "completed" && cur?.status === "locked") {
+    db.update(schema.lessonProgress)
+      .set({ status: "available" })
+      .where(eq(schema.lessonProgress.id, cur.id))
+      .run();
+  }
+}
+
 // ─── 技能统计 ───
 console.log("  同步技能统计...");
 for (const pt of PUZZLE_TYPES) {

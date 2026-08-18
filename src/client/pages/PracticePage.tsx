@@ -84,17 +84,20 @@ function Solver({ typeCode }: { typeCode: string }) {
   const [completed, setCompleted] = useState(false);
   const [xpEarned, setXpEarned] = useState(0);
   const [submitted, setSubmitted] = useState(false);
+  const [submitHint, setSubmitHint] = useState<string | null>(null);
+  const [showRules, setShowRules] = useState(typeCode === "add_sub_4");
 
   const loadPuzzle = useGameStore((s) => s.loadPuzzle);
   const userGrid = useGameStore((s) => s.userGrid);
   const mistakes = useGameStore((s) => s.mistakes);
-  const isComplete = useGameStore((s) => s.isComplete);
+  const filled = userGrid.length > 0 && userGrid.every((v) => v !== 0);
 
   const newPuzzle = useCallback(
     (diff: Difficulty) => {
       setLoading(true);
       setCompleted(false);
       setSubmitted(false);
+      setSubmitHint(null);
       api.generatePuzzle(typeCode, diff).then((p) => {
         setPuzzle(p);
         loadPuzzle(p);
@@ -104,9 +107,41 @@ function Solver({ typeCode }: { typeCode: string }) {
     [typeCode, loadPuzzle],
   );
 
+  const handleSubmit = useCallback(() => {
+    if (submitted || loading || !puzzle) return;
+    const result = useGameStore.getState().checkBoard();
+    if (!result.filled) {
+      setSubmitHint("还有空格没填完");
+      return;
+    }
+    if (!result.correct) {
+      setSubmitHint(`${result.wrongCount} 个格子不对，改完再交`);
+      return;
+    }
+    setSubmitHint(null);
+    setCompleted(true);
+    setSubmitted(true);
+    const durationMs = Date.now() - useGameStore.getState().startTime;
+    api
+      .submitPractice({
+        puzzleId: puzzle.id,
+        typeCode,
+        difficulty,
+        durationMs,
+        mistakes: useGameStore.getState().mistakes,
+        hintsUsed: useGameStore.getState().hintsUsed,
+        completed: true,
+      })
+      .then((r) => setXpEarned(r.xpEarned));
+  }, [submitted, loading, puzzle, typeCode, difficulty]);
+
   useEffect(() => {
     newPuzzle(difficulty);
   }, []); // eslint-disable-line
+
+  useEffect(() => {
+    setSubmitHint(null);
+  }, [userGrid]);
 
   useEffect(() => {
     if (loading || completed) return;
@@ -142,12 +177,17 @@ function Solver({ typeCode }: { typeCode: string }) {
         store.redo();
         return;
       }
-      if (e.key === "n" || e.key === "N") {
+      if (e.key === "n" || e.key === "N" || e.key === "m" || e.key === "M") {
         store.toggleNoteMode();
         return;
       }
       if (e.key === "h" || e.key === "H") {
         store.useHint();
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleSubmit();
         return;
       }
       const sel = store.selectedCell;
@@ -166,27 +206,7 @@ function Solver({ typeCode }: { typeCode: string }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [loading, completed, puzzle]);
-
-  useEffect(() => {
-    if (submitted || loading || !puzzle) return;
-    if (isComplete()) {
-      setCompleted(true);
-      const durationMs = Date.now() - useGameStore.getState().startTime;
-      api
-        .submitPractice({
-          puzzleId: puzzle.id,
-          typeCode,
-          difficulty,
-          durationMs,
-          mistakes,
-          hintsUsed: useGameStore.getState().hintsUsed,
-          completed: true,
-        })
-        .then((r) => setXpEarned(r.xpEarned));
-      setSubmitted(true);
-    }
-  }, [userGrid, submitted, loading, puzzle, isComplete, typeCode, difficulty, mistakes]);
+  }, [loading, completed, puzzle, handleSubmit]);
 
   if (!typeDef) {
     return (
@@ -214,10 +234,14 @@ function Solver({ typeCode }: { typeCode: string }) {
             <IconBack />
           </IconButton>
           <div className="text-center">
-            <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-ink-muted md:text-sm">
+            <button
+              type="button"
+              onClick={() => setShowRules((v) => !v)}
+              className="flex items-center justify-center gap-1.5 text-xs font-medium text-ink-muted md:text-sm"
+            >
               <PuzzleTypeIcon code={typeCode} size={14} />
               {typeDef.name}
-            </div>
+            </button>
             <div className="tabular text-2xl font-bold tracking-tight text-accent-600 md:text-3xl">
               {formatTime(elapsed)}
             </div>
@@ -226,6 +250,12 @@ function Solver({ typeCode }: { typeCode: string }) {
             <IconRefresh />
           </IconButton>
         </div>
+
+        {showRules && (
+          <p className="mb-3 rounded-xl bg-surface-sunken px-3 py-2 text-center text-xs leading-relaxed text-ink-muted">
+            {typeDef.rules}
+          </p>
+        )}
 
         {/* Difficulty */}
         <div className="mb-4 flex justify-center">
@@ -255,6 +285,17 @@ function Solver({ typeCode }: { typeCode: string }) {
           </div>
           <div className="solver-pad-wrap">
             <NumberPad size={puzzle.meta.size} />
+            {submitHint && (
+              <p className="mt-2 text-center text-xs font-medium text-danger md:text-sm">{submitHint}</p>
+            )}
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={!filled || submitted}
+              className="btn btn-primary btn-block mt-2.5 disabled:opacity-40"
+            >
+              提交
+            </button>
           </div>
         </div>
       </div>
@@ -313,7 +354,7 @@ function CompletionModal({
 
         <div className="mt-5 grid grid-cols-3 gap-2">
           <StatBox label="用时" value={formatTime(time)} />
-          <StatBox label="错误" value={String(mistakes)} />
+          <StatBox label="交卷" value={mistakes === 0 ? "一次过" : `${mistakes + 1} 次`} />
           <StatBox label="经验" value={`+${xp}`} />
         </div>
 

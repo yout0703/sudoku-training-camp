@@ -1,6 +1,7 @@
 /**
  * 游戏状态管理（Zustand）
- * 盘面、选中、候选数、错误、撤销/重做、提示
+ * 盘面、选中、候选数、撤销/重做、提示
+ * 对错只在交卷时判断，填数过程不给实时反馈
  */
 import { create } from "zustand";
 import type { PuzzleDTO } from "../../shared/api-types";
@@ -8,8 +9,13 @@ import type { PuzzleDTO } from "../../shared/api-types";
 interface HistoryEntry {
   userGrid: number[];
   candidates: Set<number>[];
-  mistakes: number;
   errorCells: number[];
+}
+
+export interface CheckResult {
+  filled: boolean;
+  correct: boolean;
+  wrongCount: number;
 }
 
 interface GameStore {
@@ -20,13 +26,12 @@ interface GameStore {
   candidates: Set<number>[];
   selectedCell: number | null;
   noteMode: boolean;
+  /** 交卷未通过的次数 */
   mistakes: number;
   hintsUsed: number;
   startTime: number;
-  /** 当前标红的错误格 */
+  /** 交卷后标出的错误格（填数过程中不更新） */
   errorCells: number[];
-  /** 刚填错的高亮（短暂） */
-  flashError: number | null;
   history: HistoryEntry[];
   future: HistoryEntry[];
 
@@ -38,8 +43,9 @@ interface GameStore {
   undo: () => void;
   redo: () => void;
   useHint: () => boolean;
-  clearFlash: () => void;
+  checkBoard: () => CheckResult;
   isCellGiven: (cell: number) => boolean;
+  isFilled: () => boolean;
   isComplete: () => boolean;
   canUndo: () => boolean;
   canRedo: () => boolean;
@@ -53,15 +59,32 @@ function cloneCands(cands: Set<number>[]): Set<number>[] {
 function snapshot(s: {
   userGrid: number[];
   candidates: Set<number>[];
-  mistakes: number;
   errorCells: number[];
 }): HistoryEntry {
   return {
     userGrid: [...s.userGrid],
     candidates: cloneCands(s.candidates),
-    mistakes: s.mistakes,
     errorCells: [...s.errorCells],
   };
+}
+
+function peerCells(cell: number, size: number, boxRows: number, boxCols: number): number[] {
+  const row = Math.floor(cell / size);
+  const col = cell % size;
+  const peers = new Set<number>();
+  for (let k = 0; k < size; k++) {
+    peers.add(row * size + k);
+    peers.add(k * size + col);
+  }
+  const br = Math.floor(row / boxRows) * boxRows;
+  const bc = Math.floor(col / boxCols) * boxCols;
+  for (let r = 0; r < boxRows; r++) {
+    for (let c = 0; c < boxCols; c++) {
+      peers.add((br + r) * size + (bc + c));
+    }
+  }
+  peers.delete(cell);
+  return [...peers];
 }
 
 function emptyState() {
@@ -77,7 +100,6 @@ function emptyState() {
     hintsUsed: 0,
     startTime: 0,
     errorCells: [] as number[],
-    flashError: null as number | null,
     history: [] as HistoryEntry[],
     future: [] as HistoryEntry[],
   };
@@ -101,36 +123,36 @@ export const useGameStore = create<GameStore>((set, get) => ({
       hintsUsed: 0,
       startTime: Date.now(),
       errorCells: [],
-      flashError: null,
       history: [],
       future: [],
     });
   },
 
-  selectCell: (cell) => set({ selectedCell: cell, flashError: null }),
+  selectCell: (cell) => set({ selectedCell: cell }),
 
   inputNumber: (num) => {
     const state = get();
-    const { selectedCell, userGrid, givens, candidates, noteMode, puzzle, solution } = state;
+    const { selectedCell, userGrid, givens, candidates, noteMode, puzzle } = state;
     if (selectedCell === null || !puzzle) return;
     if (givens[selectedCell] !== 0) return;
 
     const prev = snapshot(state);
+    const errorCells = state.errorCells.filter((c) => c !== selectedCell);
 
     if (noteMode) {
+      const newGrid = [...userGrid];
+      if (newGrid[selectedCell] !== 0) newGrid[selectedCell] = 0;
       const newCands = cloneCands(candidates);
       const s = new Set(newCands[selectedCell]);
       if (s.has(num)) s.delete(num);
       else s.add(num);
       newCands[selectedCell] = s;
-      // 候选数不计入错误
-      const newErrors = state.errorCells.filter((c) => c !== selectedCell);
       set({
+        userGrid: newGrid,
         candidates: newCands,
-        errorCells: newErrors,
+        errorCells,
         history: [...state.history, prev].slice(-50),
         future: [],
-        flashError: null,
       });
       return;
     }
@@ -139,24 +161,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
     newGrid[selectedCell] = num;
     const newCands = cloneCands(candidates);
     newCands[selectedCell] = new Set();
-
-    const correct = solution.length > 0 ? solution[selectedCell] === num : true;
-    let mistakes = state.mistakes;
-    let errorCells = state.errorCells.filter((c) => c !== selectedCell);
-    let flashError: number | null = null;
-
-    if (!correct) {
-      mistakes += 1;
-      if (!errorCells.includes(selectedCell)) errorCells = [...errorCells, selectedCell];
-      flashError = selectedCell;
+    for (const peer of peerCells(selectedCell, puzzle.meta.size, puzzle.meta.boxRows, puzzle.meta.boxCols)) {
+      if (newCands[peer]?.has(num)) {
+        const next = new Set(newCands[peer]);
+        next.delete(num);
+        newCands[peer] = next;
+      }
     }
 
     set({
       userGrid: newGrid,
       candidates: newCands,
-      mistakes,
       errorCells,
-      flashError,
       history: [...state.history, prev].slice(-50),
       future: [],
     });
@@ -180,7 +196,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       userGrid: newGrid,
       candidates: newCands,
       errorCells,
-      flashError: null,
       history: [...state.history, prev].slice(-50),
       future: [],
     });
@@ -196,9 +211,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       userGrid: prev.userGrid,
       candidates: prev.candidates,
-      mistakes: prev.mistakes,
       errorCells: prev.errorCells,
-      flashError: null,
       history: state.history.slice(0, -1),
       future: [current, ...state.future].slice(0, 50),
     });
@@ -212,9 +225,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       userGrid: next.userGrid,
       candidates: next.candidates,
-      mistakes: next.mistakes,
       errorCells: next.errorCells,
-      flashError: null,
       history: [...state.history, current],
       future: state.future.slice(1),
     });
@@ -244,7 +255,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       candidates: newCands,
       selectedCell: target,
       errorCells,
-      flashError: null,
       hintsUsed: state.hintsUsed + 1,
       history: [...state.history, prev].slice(-50),
       future: [],
@@ -252,17 +262,43 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return true;
   },
 
-  clearFlash: () => set({ flashError: null }),
+  checkBoard: () => {
+    const { userGrid, solution, givens } = get();
+    if (!userGrid.length) return { filled: false, correct: false, wrongCount: 0 };
+    const filled = userGrid.every((v) => v !== 0);
+    if (!filled) return { filled: false, correct: false, wrongCount: 0 };
+
+    const wrongCells: number[] = [];
+    if (solution.length === userGrid.length) {
+      for (let i = 0; i < userGrid.length; i++) {
+        if (givens[i] !== 0) continue;
+        if (userGrid[i] !== solution[i]) wrongCells.push(i);
+      }
+    }
+
+    if (wrongCells.length === 0) {
+      set({ errorCells: [] });
+      return { filled: true, correct: true, wrongCount: 0 };
+    }
+
+    set((s) => ({
+      errorCells: wrongCells,
+      mistakes: s.mistakes + 1,
+    }));
+    return { filled: true, correct: false, wrongCount: wrongCells.length };
+  },
 
   isCellGiven: (cell) => get().givens[cell] !== 0,
 
+  isFilled: () => {
+    const { userGrid } = get();
+    return userGrid.length > 0 && userGrid.every((v) => v !== 0);
+  },
+
   isComplete: () => {
     const { userGrid, solution } = get();
-    if (!userGrid.length) return false;
-    if (solution.length === userGrid.length) {
-      return userGrid.every((v, i) => v === solution[i]);
-    }
-    return userGrid.every((v) => v !== 0);
+    if (!userGrid.length || solution.length !== userGrid.length) return false;
+    return userGrid.every((v, i) => v === solution[i]);
   },
 
   canUndo: () => get().history.length > 0,

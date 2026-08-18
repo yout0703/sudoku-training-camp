@@ -42,7 +42,8 @@ export type VariantType =
   | "big_small"
   | "connected"
   | "ratio"
-  | "product";
+  | "product"
+  | "add_sub";
 
 /** 难度等级 */
 export type Difficulty = "easy" | "medium" | "hard" | "expert";
@@ -163,6 +164,17 @@ export interface RatioData {
   ratios: Map<string, string>;
 }
 
+/** 加减数独笼：框内数字按 + 或 - 运算得到提示数 */
+export type CalcOp = "+" | "-";
+export interface CalcCage {
+  cells: number[];
+  target: number;
+  op: CalcOp;
+}
+export interface CalcData {
+  cages: CalcCage[];
+}
+
 /** 所有变体数据的并集 */
 export interface VariantData {
   irregular?: IrregularData;
@@ -177,6 +189,7 @@ export interface VariantData {
   extraRegion?: ExtraRegionData;
   arrow?: ArrowData;
   ratio?: RatioData;
+  addSub?: CalcData;
 }
 
 /** 完整题目（含变体） */

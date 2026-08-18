@@ -11,6 +11,7 @@ import type {
   IrregularData,
   OddEvenData,
   FortressData,
+  CalcData,
 } from "../../engine";
 
 export function normalizeVariantData(raw: unknown): VariantData {
@@ -68,6 +69,17 @@ export function normalizeVariantData(raw: unknown): VariantData {
     out.ratio = {
       ratios: new Map(Object.entries(ratios ?? {}).map(([k, v]) => [k, String(v)])),
     } as RatioData;
+  }
+  if (d.addSub) {
+    out.addSub = {
+      cages: Array.isArray(d.addSub.cages)
+        ? d.addSub.cages.map((c: { cells?: number[]; target?: number; op?: string }) => ({
+            cells: Array.isArray(c.cells) ? c.cells.map(Number) : [],
+            target: Number(c.target),
+            op: c.op === "-" ? "-" : "+",
+          }))
+        : [],
+    } as CalcData;
   }
 
   return out;

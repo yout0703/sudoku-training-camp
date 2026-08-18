@@ -114,6 +114,21 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     isFinals: true,
   },
   {
+    code: "add_sub_4",
+    name: "四宫加减数独",
+    gridSize: 4,
+    boxRows: 2,
+    boxCols: 2,
+    variantType: "add_sub",
+    description: "虚线框内按加减运算得到提示数",
+    rules: "将数字 1-4 填入空格，使得每行、每列、每宫内数字均不重复。同一虚线框内填入的数字按照本框内的加减运算符号进行运算后，得到本框左上角的提示小数字。加号表示相加，减号表示用较大数减去其余数字。同一虚线框内数字不能重复。",
+    icon: "±",
+    color: "#0e7490",
+    phase: 2,
+    sortOrder: 7,
+    isFinals: false,
+  },
+  {
     code: "big_small_4",
     name: "四宫大小数数独",
     gridSize: 4,
@@ -125,7 +140,7 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     icon: "◐",
     color: "#64748b",
     phase: 2,
-    sortOrder: 7,
+    sortOrder: 8,
     isFinals: false,
   },
   {
@@ -140,7 +155,7 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     icon: "◑",
     color: "#475569",
     phase: 2,
-    sortOrder: 8,
+    sortOrder: 9,
     isFinals: false,
   },
   {
@@ -155,7 +170,7 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     icon: "≷",
     color: "#ea580c",
     phase: 2,
-    sortOrder: 9,
+    sortOrder: 10,
     isFinals: false,
   },
   {
@@ -170,7 +185,7 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     icon: "🌡️",
     color: "#e11d48",
     phase: 2,
-    sortOrder: 10,
+    sortOrder: 11,
     isFinals: false,
   },
 
@@ -187,7 +202,7 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     icon: "🧩",
     color: "#d97706",
     phase: 3,
-    sortOrder: 11,
+    sortOrder: 12,
     isFinals: true,
   },
   {
@@ -202,7 +217,7 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     icon: "🔗",
     color: "#059669",
     phase: 3,
-    sortOrder: 12,
+    sortOrder: 13,
     isFinals: true,
   },
   {
@@ -217,7 +232,7 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     icon: "🔮",
     color: "#9333ea",
     phase: 3,
-    sortOrder: 13,
+    sortOrder: 14,
     isFinals: true,
   },
   {
@@ -232,7 +247,7 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     icon: "🏰",
     color: "#57534e",
     phase: 3,
-    sortOrder: 14,
+    sortOrder: 15,
     isFinals: true,
   },
   {
@@ -247,7 +262,7 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     icon: "➗",
     color: "#2563eb",
     phase: 3,
-    sortOrder: 15,
+    sortOrder: 16,
     isFinals: false,
   },
   {
@@ -262,7 +277,7 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     icon: "🎯",
     color: "#b91c1c",
     phase: 3,
-    sortOrder: 16,
+    sortOrder: 17,
     isFinals: false,
   },
 
@@ -279,7 +294,7 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     icon: "♞",
     color: "#991b1b",
     phase: 4,
-    sortOrder: 17,
+    sortOrder: 18,
     isFinals: true,
   },
 ];

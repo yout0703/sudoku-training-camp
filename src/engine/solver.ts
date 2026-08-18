@@ -14,8 +14,8 @@ import {
 } from "./grid";
 
 export interface ExtraConstraint {
-  /** 给定当前盘面，返回 cell → 额外需排除的候选掩码 */
-  eliminations: (grid: Int8Array, struct: GridStructure) => Int8Array | null;
+  /** 给定当前盘面，返回 cell → 额外需排除的候选掩码（bitmask，与 cands 相同） */
+  eliminations: (grid: Int8Array, struct: GridStructure) => ArrayLike<number> | null;
 }
 
 export interface SolveOptions {

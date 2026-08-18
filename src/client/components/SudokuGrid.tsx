@@ -1,13 +1,14 @@
 /**
- * 数独盘面：多尺寸、多变体、错误高亮
+ * 数独盘面：多尺寸、多变体
+ * 对错只在交卷后标红，填数过程不给实时反馈
  * 格子尺寸随容器宽度自适应（手机 / iPad）
  */
-import { memo, useEffect, useMemo, useRef } from "react";
+import { memo, useMemo, useRef } from "react";
 import { useGameStore } from "../stores/gameStore";
 import { normalizeVariantData } from "../lib/variant";
 import { computeCellSize, useContainerWidth } from "../hooks/useContainerWidth";
 import type { PuzzleDTO } from "../../shared/api-types";
-import type { IrregularData, KillerData, ThermometerData } from "../../engine";
+import type { CalcData, IrregularData, KillerData, ThermometerData } from "../../engine";
 
 interface Props {
   puzzle: PuzzleDTO;
@@ -78,14 +79,7 @@ function SudokuGridBase({ puzzle, readOnly, highlightCells, displayGrid, classNa
   const selectCell = useGameStore((s) => s.selectCell);
   const givensArr = useGameStore((s) => s.givens);
   const errorCells = useGameStore((s) => s.errorCells);
-  const flashError = useGameStore((s) => s.flashError);
-  const clearFlash = useGameStore((s) => s.clearFlash);
-
-  useEffect(() => {
-    if (flashError === null) return;
-    const t = setTimeout(() => clearFlash(), 450);
-    return () => clearTimeout(t);
-  }, [flashError, clearFlash]);
+  const noteMode = useGameStore((s) => s.noteMode);
 
   const grid = displayGrid ?? userGrid;
   const selectedValue = !readOnly && selectedCell !== null ? grid[selectedCell] : 0;
@@ -125,10 +119,27 @@ function SudokuGridBase({ puzzle, readOnly, highlightCells, displayGrid, classNa
     return vdata.sum56.sums;
   }, [variantType, vdata]);
 
+  const cageLabelCells = useMemo(() => {
+    const set = new Set<number>();
+    const cages = vdata.addSub?.cages ?? vdata.killer?.cages;
+    if (!cages) return set;
+    for (const cage of cages) {
+      if (!cage.cells.length) continue;
+      let min = cage.cells[0];
+      for (const c of cage.cells) if (c < min) min = c;
+      set.add(min);
+    }
+    return set;
+  }, [vdata]);
+
+  const candCols = size <= 4 ? 2 : 3;
+  const candFont = size <= 4 ? 11 : size <= 6 ? 10 : 8;
+
   return (
     <div ref={shellRef} className={`relative w-full ${className}`}>
+      <div className="relative mx-auto" style={{ width: cellSize * size + thick * 2 }}>
       <div
-        className="mx-auto grid overflow-hidden rounded-2xl bg-surface-elevated shadow-card"
+        className="grid overflow-hidden rounded-2xl bg-surface-elevated shadow-card"
         style={{
           width: cellSize * size + thick * 2,
           gridTemplateColumns: `repeat(${size}, ${cellSize}px)`,
@@ -144,7 +155,6 @@ function SudokuGridBase({ puzzle, readOnly, highlightCells, displayGrid, classNa
             : (givensArr[i] ?? puzzle.givens[i]) !== 0;
           const isSelected = !readOnly && selectedCell === i;
           const isError = !readOnly && errorSet.has(i) && !isGiven;
-          const isFlash = !readOnly && flashError === i;
           const inSameArea =
             highlightInfo &&
             (row === highlightInfo.sr ||
@@ -159,19 +169,21 @@ function SudokuGridBase({ puzzle, readOnly, highlightCells, displayGrid, classNa
           const isDemoHL = demoHL.has(i);
 
           let bg = "bg-surface-elevated";
-          if (isFlash) bg = "bg-danger-soft";
-          else if (isError) bg = "bg-danger-soft/70";
+          if (isError) bg = "bg-danger-soft/70";
           else if (isDemoHL) bg = "bg-accent-100";
+          else if (isSelected && noteMode) bg = "bg-warning-soft";
           else if (isSelected) bg = "bg-accent-200";
           else if (sameValue) bg = "bg-accent-100";
           else if (inSameArea) bg = "bg-surface";
 
           const isGreyFortress = fortress?.grey[i] === 1;
           const isGreyBig = bigSmall?.grey[i] === 1;
-          if ((isGreyFortress || isGreyBig) && !isSelected && !isError && !isFlash && !isDemoHL) {
+          if ((isGreyFortress || isGreyBig) && !isSelected && !isError && !isDemoHL) {
             bg = "bg-surface-sunken";
           }
-          if ((isGreyFortress || isGreyBig) && isSelected) bg = "bg-accent-300";
+          if ((isGreyFortress || isGreyBig) && isSelected) {
+            bg = noteMode ? "bg-warning-soft" : "bg-accent-300";
+          }
 
           const parity = oddEven?.parity[i];
           const cands = candidates[i];
@@ -182,7 +194,7 @@ function SudokuGridBase({ puzzle, readOnly, highlightCells, displayGrid, classNa
               key={i}
               className={`${bg} relative flex items-center justify-center transition-colors duration-150 ${
                 readOnly ? "" : "cursor-pointer"
-              } ${isFlash ? "animate-pulse" : ""}`}
+              }`}
               style={{
                 ...getBorderStyle(row, col, size, boxRows, boxCols, irregular),
                 width: cellSize,
@@ -240,26 +252,39 @@ function SudokuGridBase({ puzzle, readOnly, highlightCells, displayGrid, classNa
                   className="relative z-10 select-none font-bold tabular"
                   style={{
                     fontSize,
-                    color: isError || isFlash ? "#dc2626" : isGiven ? "#1a2e28" : "#0d9488",
+                    color: isError ? "#dc2626" : isGiven ? "#1a2e28" : "#0d9488",
                   }}
                 >
                   {value}
                 </span>
               )}
 
+              {isSelected && noteMode && !readOnly && (
+                <div
+                  className="pointer-events-none absolute rounded-[3px]"
+                  style={{
+                    inset: 3,
+                    border: "1.5px dashed #d97706",
+                  }}
+                />
+              )}
+
               {showCandidates && (
                 <div
-                  className="pointer-events-none absolute inset-0 grid p-0.5"
+                  className="pointer-events-none absolute inset-0 grid"
                   style={{
-                    gridTemplateColumns: `repeat(${size <= 4 ? 2 : 3}, 1fr)`,
-                    gridTemplateRows: `repeat(${size <= 4 ? 2 : 3}, 1fr)`,
-                    fontSize: size <= 4 ? 10 : size <= 6 ? 9 : 8,
+                    gridTemplateColumns: `repeat(${candCols}, 1fr)`,
+                    padding: cageLabelCells.has(i) ? "11px 2px 2px" : "3px",
+                    fontSize: candFont,
                   }}
                 >
-                  {Array.from({ length: size <= 4 ? 4 : 9 }).map((_, ci) => {
+                  {Array.from({ length: size }).map((_, ci) => {
                     const num = ci + 1;
                     return (
-                      <div key={num} className="flex items-center justify-center text-ink-faint">
+                      <div
+                        key={num}
+                        className="flex items-center justify-center font-semibold tabular text-ink-muted"
+                      >
                         {cands.has(num) ? num : ""}
                       </div>
                     );
@@ -271,23 +296,135 @@ function SudokuGridBase({ puzzle, readOnly, highlightCells, displayGrid, classNa
         })}
       </div>
 
-      {consecPairs && <ConsecutiveMarks pairs={consecPairs} size={size} cellSize={cellSize} />}
-      {sum56 && <Sum56Marks sums={sum56} size={size} cellSize={cellSize} />}
-      {vdata.killer && (
-        <KillerCageMarks data={vdata.killer as KillerData} size={size} cellSize={cellSize} />
-      )}
-      {vdata.thermometer && (
-        <ThermoMarks data={vdata.thermometer} size={size} cellSize={cellSize} />
-      )}
-      {vdata.greaterThan && (
-        <GTMarks data={vdata.greaterThan} size={size} cellSize={cellSize} />
-      )}
-      {vdata.ratio && <RatioMarks data={vdata.ratio} size={size} cellSize={cellSize} />}
+      <div
+        className="pointer-events-none absolute"
+        style={{ left: thick, top: thick, width: cellSize * size, height: cellSize * size }}
+      >
+        {consecPairs && <ConsecutiveMarks pairs={consecPairs} size={size} cellSize={cellSize} />}
+        {sum56 && <Sum56Marks sums={sum56} size={size} cellSize={cellSize} />}
+        {vdata.killer && (
+          <KillerCageMarks data={vdata.killer as KillerData} size={size} cellSize={cellSize} />
+        )}
+        {vdata.addSub && (
+          <CalcCageMarks data={vdata.addSub} size={size} cellSize={cellSize} />
+        )}
+        {vdata.thermometer && (
+          <ThermoMarks data={vdata.thermometer} size={size} cellSize={cellSize} />
+        )}
+        {vdata.greaterThan && (
+          <GTMarks data={vdata.greaterThan} size={size} cellSize={cellSize} />
+        )}
+        {vdata.ratio && <RatioMarks data={vdata.ratio} size={size} cellSize={cellSize} />}
+      </div>
+      </div>
     </div>
   );
 }
 
 export const SudokuGrid = memo(SudokuGridBase);
+
+function cageRect(cells: number[], size: number) {
+  let minR = size;
+  let maxR = -1;
+  let minC = size;
+  let maxC = -1;
+  const set = new Set(cells);
+  for (const cell of cells) {
+    const r = Math.floor(cell / size);
+    const c = cell % size;
+    if (r < minR) minR = r;
+    if (r > maxR) maxR = r;
+    if (c < minC) minC = c;
+    if (c > maxC) maxC = c;
+  }
+  const expected = (maxR - minR + 1) * (maxC - minC + 1);
+  if (cells.length !== expected) return null;
+  for (let r = minR; r <= maxR; r++) {
+    for (let c = minC; c <= maxC; c++) {
+      if (!set.has(r * size + c)) return null;
+    }
+  }
+  return { minR, maxR, minC, maxC };
+}
+
+function CalcCageMarks({
+  data,
+  size,
+  cellSize,
+}: {
+  data: CalcData;
+  size: number;
+  cellSize: number;
+}) {
+  const inset = Math.max(3, Math.round(cellSize * 0.08));
+  const marks: React.ReactNode[] = [];
+
+  for (let ci = 0; ci < data.cages.length; ci++) {
+    const cage = data.cages[ci];
+    if (cage.cells.length < 2) continue;
+
+    let minCell = cage.cells[0];
+    for (const c of cage.cells) if (c < minCell) minCell = c;
+    const mr = Math.floor(minCell / size);
+    const mc = minCell % size;
+    const rect = cageRect(cage.cells, size);
+
+    if (rect) {
+      marks.push(
+        <div
+          key={`cage-${ci}`}
+          className="absolute rounded-[5px]"
+          style={{
+            left: rect.minC * cellSize + inset,
+            top: rect.minR * cellSize + inset,
+            width: (rect.maxC - rect.minC + 1) * cellSize - inset * 2,
+            height: (rect.maxR - rect.minR + 1) * cellSize - inset * 2,
+            border: "1.5px dashed #1a2e28",
+          }}
+        />,
+      );
+    } else {
+      const set = new Set(cage.cells);
+      for (const cell of cage.cells) {
+        const r = Math.floor(cell / size);
+        const c = cell % size;
+        const top = r === 0 || !set.has((r - 1) * size + c);
+        const bottom = r === size - 1 || !set.has((r + 1) * size + c);
+        const left = c === 0 || !set.has(r * size + c - 1);
+        const right = c === size - 1 || !set.has(r * size + c + 1);
+        marks.push(
+          <div
+            key={`cage-${ci}-${cell}`}
+            className="absolute"
+            style={{
+              left: c * cellSize + inset,
+              top: r * cellSize + inset,
+              width: cellSize - inset * 2,
+              height: cellSize - inset * 2,
+              borderTop: top ? "1.5px dashed #1a2e28" : "none",
+              borderBottom: bottom ? "1.5px dashed #1a2e28" : "none",
+              borderLeft: left ? "1.5px dashed #1a2e28" : "none",
+              borderRight: right ? "1.5px dashed #1a2e28" : "none",
+            }}
+          />,
+        );
+      }
+    }
+
+    marks.push(
+      <div
+        key={`lab-${ci}`}
+        className="absolute z-20 text-[10px] font-bold tabular leading-none text-ink"
+        style={{ left: mc * cellSize + inset + 1, top: mr * cellSize + inset + 1 }}
+      >
+        {cage.target}
+        {cage.op}
+      </div>,
+    );
+  }
+
+  return <>{marks}</>;
+}
 
 function ConsecutiveMarks({
   pairs,

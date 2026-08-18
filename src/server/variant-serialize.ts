@@ -110,6 +110,7 @@ export function normalizeVariantData(raw: unknown): VariantData {
       ),
     };
   }
+  if (d.addSub) out.addSub = d.addSub;
 
   return out;
 }

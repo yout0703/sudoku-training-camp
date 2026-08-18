@@ -75,6 +75,15 @@ function IconOddEven({ color, className, size }: { color?: string; className?: s
   );
 }
 
+function IconAddSub({ color, className, size }: { color?: string; className?: string; size?: number }) {
+  return (
+    <SvgShell color={color} className={className} size={size}>
+      <rect x="4" y="4" width="16" height="16" rx="2" strokeDasharray="2.5 2" />
+      <path d="M8 10h4M10 8v4M14 14h3" />
+    </SvgShell>
+  );
+}
+
 function IconKiller({ color, className, size }: { color?: string; className?: string; size?: number }) {
   return (
     <SvgShell color={color} className={className} size={size}>
@@ -186,6 +195,7 @@ const BY_VARIANT: Record<
   diagonal: IconDiagonal,
   odd_even: IconOddEven,
   killer: IconKiller,
+  add_sub: IconAddSub,
   big_small: IconBigSmall,
   greater_than: IconGreaterThan,
   thermometer: IconThermo,

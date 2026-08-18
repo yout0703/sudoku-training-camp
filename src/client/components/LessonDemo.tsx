@@ -154,10 +154,58 @@ export const DEMO_DIAGONAL_6: LessonDemoDef = {
   ],
 };
 
+/** 四宫加减：用比赛同款虚线框拆组合 */
+export const DEMO_ADD_SUB_4: LessonDemoDef = {
+  title: "先拆加减组合",
+  puzzle: {
+    id: 0,
+    typeCode: "add_sub_4",
+    difficulty: "easy",
+    meta: { size: 4, boxRows: 2, boxCols: 2 },
+    givens: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    variantType: "add_sub",
+    data: {
+      addSub: {
+        cages: [
+          { cells: [2, 3], target: 4, op: "+" },
+          { cells: [4, 8], target: 5, op: "+" },
+          { cells: [5, 6], target: 1, op: "-" },
+          { cells: [10, 11], target: 3, op: "-" },
+          { cells: [13, 14], target: 7, op: "+" },
+        ],
+      },
+    },
+    solution: [4, 2, 1, 3, 3, 1, 2, 4, 2, 3, 4, 1, 1, 4, 3, 2],
+  },
+  steps: [
+    {
+      text: "先看最死的框：7+ 的两格只能是 3 和 4；3- 的两格只能是 1 和 4。",
+      highlight: [10, 11, 13, 14],
+      grid: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    },
+    {
+      text: "右下宫里已经要放下 1、4 和 3、4。第四行的 7+ 若把 4 放在第三列，右下宫会有两个 4，所以第三列只能放 3。",
+      highlight: [13, 14],
+      grid: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 3, 0],
+    },
+    {
+      text: "3- 框因此是 4 和 1。第一行 4+ 只能是 1 和 3，而第三列已经有 3，所以上面那格是 1。",
+      highlight: [2, 3, 10, 11],
+      grid: [0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 4, 1, 0, 4, 3, 0],
+    },
+    {
+      text: "剩下的格子用行、列、宫排除就能填完。加减框负责缩小组合，标准规则负责收口。",
+      highlight: [0, 1, 4, 5, 6, 7, 8, 9, 12, 15],
+      grid: [4, 2, 1, 3, 3, 1, 2, 4, 2, 3, 4, 1, 1, 4, 3, 2],
+    },
+  ],
+};
+
 /** 根据 typeCode / 课程标题匹配演示 */
 export function getDemoForLesson(typeCode: string | null, title: string): LessonDemoDef | null {
+  if (typeCode === "add_sub_4" || title.includes("加减")) return DEMO_ADD_SUB_4;
   if (title.includes("认识数独") || typeCode === "standard_4") return DEMO_UNIQUE_4;
   if (typeCode === "diagonal_6" || title.includes("对角线")) return DEMO_DIAGONAL_6;
   if (typeCode === "standard_6" || typeCode === "standard_9") return DEMO_UNIQUE_4;
-  return DEMO_UNIQUE_4; // 默认给一个演示
+  return DEMO_UNIQUE_4;
 }

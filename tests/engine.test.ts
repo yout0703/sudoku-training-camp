@@ -9,9 +9,17 @@ import {
   solveOne,
   hasUniqueSolution,
   generate,
+  generateAddSubPuzzle,
+  generateFullGrid,
+  addSubConstraint,
+  evalCalcCage,
+  cagesMatchSolution,
   isValid,
   isSolved,
+  RNG,
 } from "../src/engine";
+import { generatePuzzle } from "../src/server/puzzle-service";
+import { getPuzzleType } from "../src/shared/puzzle-types";
 
 // ─── 辅助：从字符串构建盘面 ───
 function gridFromString(str: string): Int8Array {
@@ -196,5 +204,68 @@ describe("Generator", () => {
     const a = generate(meta, { difficulty: "easy", seed: 42 });
     const b = generate(meta, { difficulty: "easy", seed: 42 });
     expect(a.givens).toEqual(b.givens);
+  });
+});
+
+describe("Add-sub (加减数独)", () => {
+  const meta = DEFAULT_META[4];
+  const struct = buildStructure(meta);
+
+  // 选拔赛截图那道题
+  const contestCages = [
+    { cells: [2, 3], target: 4, op: "+" as const },
+    { cells: [4, 8], target: 5, op: "+" as const },
+    { cells: [5, 6], target: 1, op: "-" as const },
+    { cells: [10, 11], target: 3, op: "-" as const },
+    { cells: [13, 14], target: 7, op: "+" as const },
+  ];
+  const contestSolution = [4, 2, 1, 3, 3, 1, 2, 4, 2, 3, 4, 1, 1, 4, 3, 2];
+
+  test("eval + and -", () => {
+    expect(evalCalcCage([1, 3], "+")).toBe(4);
+    expect(evalCalcCage([3, 4], "+")).toBe(7);
+    expect(evalCalcCage([1, 2], "-")).toBe(1);
+    expect(evalCalcCage([4, 1], "-")).toBe(3);
+    expect(evalCalcCage([4, 2, 1], "-")).toBe(1);
+  });
+
+  test("contest sample matches its solution", () => {
+    expect(cagesMatchSolution(contestCages, contestSolution)).toBe(true);
+    expect(isSolved(Int8Array.from(contestSolution), struct)).toBe(true);
+  });
+
+  test("contest sample has a unique solution from empty grid", () => {
+    const extra = addSubConstraint(contestCages, 4);
+    const result = solve(new Int8Array(16), struct, { maxSolutions: 2, extraConstraint: extra });
+    expect(result.solutions).toHaveLength(1);
+    expect([...result.solutions[0]]).toEqual(contestSolution);
+  });
+
+  test("generated 4×4 add-sub is unique and matches cages", () => {
+    for (const seed of [1, 7, 21, 42, 100]) {
+      const solution = generateFullGrid(struct, new RNG(seed));
+      const puzzle = generateAddSubPuzzle(solution, meta, new RNG(seed + 99), "medium");
+      const cages = puzzle.data.addSub?.cages ?? [];
+      expect(cages.length).toBeGreaterThan(2);
+      expect(cagesMatchSolution(cages, solution)).toBe(true);
+
+      const extra = addSubConstraint(cages, 4);
+      const result = solve(Int8Array.from(puzzle.givens), struct, {
+        maxSolutions: 2,
+        extraConstraint: extra,
+      });
+      expect(result.solutions).toHaveLength(1);
+      expect([...result.solutions[0]]).toEqual([...solution]);
+    }
+  });
+
+  test("puzzle-service exposes add_sub_4", () => {
+    const typeDef = getPuzzleType("add_sub_4");
+    expect(typeDef).toBeDefined();
+    const puzzle = generatePuzzle(typeDef!, "easy", 2026);
+    expect(puzzle.givens).toHaveLength(16);
+    expect(puzzle.solution).toHaveLength(16);
+    expect(puzzle.data?.addSub?.cages.length).toBeGreaterThan(0);
+    expect(cagesMatchSolution(puzzle.data!.addSub!.cages, puzzle.solution)).toBe(true);
   });
 });
