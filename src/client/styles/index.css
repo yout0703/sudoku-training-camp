@@ -412,8 +412,8 @@ button,
   }
 
   .solver-pad-wrap {
-    flex: 0 0 15.5rem;
-    max-width: 15.5rem;
+    flex: 0 0 17.5rem;
+    max-width: 17.5rem;
     position: sticky;
     top: 1rem;
   }
@@ -429,8 +429,8 @@ button,
   }
 
   .solver-pad-wrap {
-    flex-basis: 17rem;
-    max-width: 17rem;
+    flex-basis: 18.5rem;
+    max-width: 18.5rem;
   }
 }
 

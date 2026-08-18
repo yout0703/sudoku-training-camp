@@ -64,7 +64,7 @@ export function LearnPage() {
     <Page>
       <PageHeader
         title="学习课程"
-        subtitle={`已完成 ${totalCompleted}/${lessons.length} 节 · 跟着路径一步步变强`}
+        subtitle={`已完成 ${totalCompleted}/${lessons.length} 节 · 全部课程随时可看`}
       />
 
       <div className="card mb-6">
@@ -84,18 +84,15 @@ export function LearnPage() {
             <SectionLabel>{PHASE_NAMES[phase]}</SectionLabel>
             <div className="space-y-2">
               {phaseLessons.map((lesson, idx) => {
-                const cfg = STATUS[lesson.status] ?? STATUS.locked;
+                const status = lesson.status === "locked" ? "available" : lesson.status;
+                const cfg = STATUS[status] ?? STATUS.available;
                 const Icon = cfg.icon;
-                const isLocked = lesson.status === "locked";
                 return (
                   <button
                     key={lesson.id}
                     type="button"
-                    disabled={isLocked}
                     onClick={() => nav(`/learn/${lesson.id}`)}
-                    className={`card-interactive flex items-center gap-3 ${cfg.cardClass} ${
-                      isLocked ? "cursor-not-allowed active:scale-100" : ""
-                    }`}
+                    className={`card-interactive flex items-center gap-3 ${cfg.cardClass}`}
                   >
                     <div
                       className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${cfg.iconClass}`}
@@ -113,7 +110,7 @@ export function LearnPage() {
                       </div>
                       <p className="mt-0.5 text-xs text-ink-faint">{cfg.label}</p>
                     </div>
-                    {!isLocked && <IconChevronRight className="h-5 w-5 shrink-0 text-ink-faint" />}
+                    <IconChevronRight className="h-5 w-5 shrink-0 text-ink-faint" />
                   </button>
                 );
               })}

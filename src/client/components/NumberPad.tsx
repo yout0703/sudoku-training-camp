@@ -32,7 +32,7 @@ export function NumberPad({ size }: Props) {
 
   const selectedMarks =
     selectedCell !== null && candidates[selectedCell] ? candidates[selectedCell] : null;
-  const cols = size <= 4 ? 4 : 3;
+  const cols = size <= 4 ? 2 : 3;
 
   return (
     <div className="mx-auto flex w-full flex-col gap-2.5 md:gap-3">
@@ -46,8 +46,11 @@ export function NumberPad({ size }: Props) {
         </span>
       </div>
 
-      <div className="flex gap-2">
-        <div className="grid min-w-0 flex-1 gap-2" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+      <div className="flex items-stretch gap-2">
+        <div
+          className="grid min-w-0 flex-1 gap-2"
+          style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+        >
           {Array.from({ length: size }).map((_, i) => {
             const num = i + 1;
             const remaining = size - counts[num];
@@ -60,7 +63,7 @@ export function NumberPad({ size }: Props) {
                 onClick={() => inputNumber(num)}
                 disabled={done}
                 aria-label={noteMode ? `标记 ${num}` : `填入 ${num}`}
-                className={`flex aspect-square min-h-[2.75rem] flex-col items-center justify-center rounded-2xl transition-all duration-150 active:scale-95 md:min-h-[3.25rem] ${
+                className={`flex aspect-square w-full min-w-0 flex-col items-center justify-center rounded-2xl transition-all duration-150 active:scale-95 ${
                   done
                     ? "bg-surface-sunken text-ink-faint/40"
                     : marked
@@ -92,7 +95,7 @@ export function NumberPad({ size }: Props) {
           onClick={toggleNoteMode}
           aria-pressed={noteMode}
           aria-label={noteMode ? "关闭标记" : "打开标记"}
-          className={`flex w-[3.4rem] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl text-sm font-semibold transition-all duration-150 active:scale-95 md:w-[3.75rem] md:text-base ${
+          className={`flex w-14 shrink-0 flex-col items-center justify-center gap-1 rounded-2xl text-sm font-semibold transition-all duration-150 active:scale-95 md:w-16 md:text-base ${
             noteMode
               ? "bg-warning text-white shadow-card"
               : "bg-surface-elevated text-ink-muted shadow-card ring-1 ring-ink/6"

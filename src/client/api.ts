@@ -45,7 +45,7 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ status }),
     }),
-  /** 重置全部课程进度（第一节解锁，其余锁定） */
+  /** 重置全部课程进度（全部重新开放） */
   resetLessons: () =>
     fetchJSON<{ success: boolean; resetCount: number }>("/lessons/reset", {
       method: "POST",

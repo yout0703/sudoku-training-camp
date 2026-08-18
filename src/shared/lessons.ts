@@ -473,7 +473,7 @@ export const LESSONS: LessonDef[] = [
       {
         type: "rule",
         title: "虚线框里做加减",
-        content: "加减数独和杀手有点像，虚线框左上角也有小数字，但后面带着 + 或 -。\n\n加号：框里的数字加起来等于提示数。比如 4+ 的两格只能是 1 和 3。\n减号：用较大的数减去其余的数，得到提示数。比如 1- 的两格一定是相邻的数，像 2 和 3。\n\n行、列、宫仍然不能重复。没有虚线框的格子只走标准规则。",
+        content: "加减数独和杀手有点像，虚线框左上角也有小数字，但后面带着 + 或 -。每个虚线框都是相邻的两格，不会出现三格框。\n\n加号：两格数字加起来等于提示数。比如 4+ 只能是 1 和 3。\n减号：两格数字的差等于提示数。比如 1- 一定是相邻的数，像 2 和 3。\n\n行、列、宫仍然不能重复。没有虚线框的格子只走标准规则。",
       },
       {
         type: "technique",
@@ -493,3 +493,8 @@ export const LESSONS: LessonDef[] = [
     ],
   },
 ];
+
+/** 某题型对应的第一节课（按 sortOrder） */
+export function firstLessonForType(typeCode: string): LessonDef | undefined {
+  return LESSONS.filter((l) => l.typeCode === typeCode).sort((a, b) => a.sortOrder - b.sortOrder)[0];
+}

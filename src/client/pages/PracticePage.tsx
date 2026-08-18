@@ -8,7 +8,7 @@ import { SudokuGrid } from "../components/SudokuGrid";
 import { NumberPad } from "../components/NumberPad";
 import { useGameStore } from "../stores/gameStore";
 import { PUZZLE_TYPES, PHASE_NAMES, getPuzzleType } from "../../shared/puzzle-types";
-import type { PuzzleDTO } from "../../shared/api-types";
+import type { LessonDTO, PuzzleDTO } from "../../shared/api-types";
 import type { Difficulty } from "../../engine";
 import {
   Page,
@@ -18,7 +18,7 @@ import {
   IconButton,
   formatTime,
 } from "../components/ui/primitives";
-import { IconBack, IconRefresh, IconStar, IconTrophy } from "../components/ui/Icons";
+import { IconBack, IconRefresh, IconStar, IconTrophy, IconBook } from "../components/ui/Icons";
 import { PuzzleTypeIcon } from "../components/ui/PuzzleTypeIcon";
 
 const DIFFICULTIES: { value: Difficulty; label: string; active: string }[] = [
@@ -39,7 +39,20 @@ function TypeSelect() {
 
   return (
     <Page>
-      <PageHeader title="选择练习题型" subtitle="点任意题型开始 · 可随时换难度" />
+      <PageHeader
+        title="选择练习题型"
+        subtitle="全部题型已开放 · 可随时换难度"
+        action={
+          <button
+            type="button"
+            onClick={() => nav("/learn")}
+            className="inline-flex min-h-[2.75rem] shrink-0 items-center gap-1.5 rounded-xl bg-surface-elevated px-3 text-sm font-semibold text-accent-700 shadow-card ring-1 ring-accent-600/15 active:scale-[0.98]"
+          >
+            <IconBook className="h-4 w-4" />
+            学习课程
+          </button>
+        }
+      />
 
       {phases.map((phase) => {
         const types = PUZZLE_TYPES.filter((t) => t.phase === phase);
@@ -86,6 +99,7 @@ function Solver({ typeCode }: { typeCode: string }) {
   const [submitted, setSubmitted] = useState(false);
   const [submitHint, setSubmitHint] = useState<string | null>(null);
   const [showRules, setShowRules] = useState(typeCode === "add_sub_4");
+  const [lessonId, setLessonId] = useState<number | null>(null);
 
   const loadPuzzle = useGameStore((s) => s.loadPuzzle);
   const userGrid = useGameStore((s) => s.userGrid);
@@ -138,6 +152,15 @@ function Solver({ typeCode }: { typeCode: string }) {
   useEffect(() => {
     newPuzzle(difficulty);
   }, []); // eslint-disable-line
+
+  useEffect(() => {
+    api.getLessons().then((lessons: LessonDTO[]) => {
+      const match = [...lessons]
+        .filter((l) => l.typeCode === typeCode)
+        .sort((a, b) => a.sortOrder - b.sortOrder)[0];
+      setLessonId(match?.id ?? null);
+    });
+  }, [typeCode]);
 
   useEffect(() => {
     setSubmitHint(null);
@@ -245,6 +268,16 @@ function Solver({ typeCode }: { typeCode: string }) {
             <div className="tabular text-2xl font-bold tracking-tight text-accent-600 md:text-3xl">
               {formatTime(elapsed)}
             </div>
+            <button
+              type="button"
+              onClick={() =>
+                nav(lessonId ? `/learn/${lessonId}?from=practice` : "/learn")
+              }
+              className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-accent-700 md:text-xs"
+            >
+              <IconBook className="h-3.5 w-3.5" />
+              看课程
+            </button>
           </div>
           <IconButton label="换一题" onClick={() => newPuzzle(difficulty)}>
             <IconRefresh />

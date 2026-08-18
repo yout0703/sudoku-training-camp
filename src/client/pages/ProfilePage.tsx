@@ -43,7 +43,7 @@ export function ProfilePage() {
 
   const handleResetLessons = async () => {
     const ok = window.confirm(
-      "确定要重置全部课程进度吗？\n\n第一节会重新解锁，其余课程恢复为锁定。\n练习记录和经验值不会清空。",
+      "确定要重置全部课程进度吗？\n\n学习进度会清掉，课程仍然全部开放。\n练习记录和经验值不会清空。",
     );
     if (!ok) return;
 

@@ -247,6 +247,7 @@ describe("Add-sub (加减数独)", () => {
       const puzzle = generateAddSubPuzzle(solution, meta, new RNG(seed + 99), "medium");
       const cages = puzzle.data.addSub?.cages ?? [];
       expect(cages.length).toBeGreaterThan(2);
+      expect(cages.every((c) => c.cells.length === 2)).toBe(true);
       expect(cagesMatchSolution(cages, solution)).toBe(true);
 
       const extra = addSubConstraint(cages, 4);
@@ -266,6 +267,7 @@ describe("Add-sub (加减数独)", () => {
     expect(puzzle.givens).toHaveLength(16);
     expect(puzzle.solution).toHaveLength(16);
     expect(puzzle.data?.addSub?.cages.length).toBeGreaterThan(0);
+    expect(puzzle.data!.addSub!.cages.every((c) => c.cells.length === 2)).toBe(true);
     expect(cagesMatchSolution(puzzle.data!.addSub!.cages, puzzle.solution)).toBe(true);
   });
 });

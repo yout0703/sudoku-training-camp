@@ -2,7 +2,7 @@
  * 课程详情 + 交互演示
  */
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { getPuzzleType } from "../../shared/puzzle-types";
 import { Page, Button, LoadingPage } from "../components/ui/primitives";
@@ -38,6 +38,8 @@ const SECTION_META: Record<string, { label: string; bar: string }> = {
 export function LessonDetailPage() {
   const { id } = useParams();
   const nav = useNavigate();
+  const [search] = useSearchParams();
+  const fromPractice = search.get("from") === "practice";
   const [lesson, setLesson] = useState<LessonDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -45,7 +47,7 @@ export function LessonDetailPage() {
     api.getLesson(parseInt(id!)).then((l) => {
       setLesson(l as LessonDetail);
       setLoading(false);
-      if (l.status === "available") {
+      if (l.status === "available" || l.status === "locked") {
         api.updateLesson(l.id, "in_progress");
       }
     });
@@ -79,11 +81,14 @@ export function LessonDetailPage() {
     <Page className="!pb-32">
       <button
         type="button"
-        onClick={() => nav("/learn")}
+        onClick={() => {
+          if (fromPractice && lesson.typeCode) nav(`/practice/${lesson.typeCode}`);
+          else nav("/learn");
+        }}
         className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-ink-muted transition-colors active:text-ink"
       >
         <IconBack className="h-4 w-4" />
-        返回课程列表
+        {fromPractice && lesson.typeCode ? "返回练习" : "返回课程列表"}
       </button>
 
       <header className="mb-6">
@@ -132,14 +137,35 @@ export function LessonDetailPage() {
 
       <div className="fixed bottom-20 left-0 right-0 z-40 px-4 pb-[env(safe-area-inset-bottom)] md:bottom-24">
         <div className="shell">
-          <Button
-            variant="primary"
-            block
-            onClick={handleComplete}
-            className="shadow-float !py-3.5 text-base md:!py-4 md:text-lg"
-          >
-            {lesson.typeCode ? "完成课程，开始练习" : "完成课程"}
-          </Button>
+          {fromPractice && lesson.typeCode ? (
+            <div className="flex gap-2.5">
+              <Button
+                variant="secondary"
+                block
+                onClick={() => nav(`/practice/${lesson.typeCode}`)}
+                className="shadow-float !py-3.5 text-base md:!py-4 md:text-lg"
+              >
+                返回练习
+              </Button>
+              <Button
+                variant="primary"
+                block
+                onClick={handleComplete}
+                className="shadow-float !py-3.5 text-base md:!py-4 md:text-lg"
+              >
+                学完了
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="primary"
+              block
+              onClick={handleComplete}
+              className="shadow-float !py-3.5 text-base md:!py-4 md:text-lg"
+            >
+              {lesson.typeCode ? "完成课程，开始练习" : "完成课程"}
+            </Button>
+          )}
         </div>
       </div>
     </Page>

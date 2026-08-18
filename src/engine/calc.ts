@@ -100,13 +100,7 @@ function orthoNeighbors(cell: number, size: number): number[] {
   return out;
 }
 
-function growCages(
-  solution: Int8Array,
-  size: number,
-  rng: RNG,
-  coverage: number,
-  tripleChance: number,
-): CalcCage[] {
+function growCages(solution: Int8Array, size: number, rng: RNG, coverage: number): CalcCage[] {
   const total = size * size;
   const used = new Set<number>();
   const cages: CalcCage[] = [];
@@ -119,32 +113,18 @@ function growCages(
       continue;
     }
 
-    const want = rng.next() < tripleChance ? 3 : 2;
-    const cells = [start];
+    const neighbors = orthoNeighbors(start, size).filter((n) => !used.has(n));
+    if (neighbors.length === 0) continue;
+
+    const partner = rng.pick(neighbors);
+    const cells = [start, partner];
     used.add(start);
-
-    while (cells.length < want) {
-      const frontier: number[] = [];
-      for (const cell of cells) {
-        for (const n of orthoNeighbors(cell, size)) {
-          if (!used.has(n)) frontier.push(n);
-        }
-      }
-      if (frontier.length === 0) break;
-      const pick = rng.pick(frontier);
-      cells.push(pick);
-      used.add(pick);
-    }
-
-    if (cells.length < 2) continue;
+    used.add(partner);
 
     const values = cells.map((c) => solution[c]);
     const sum = values.reduce((a, b) => a + b, 0);
     const diff = evalCalcCage(values, "-");
-    let op: CalcOp = "+";
-    if (diff >= 1 && new Set(values).size === values.length) {
-      op = cells.length >= 3 ? (rng.next() < 0.25 ? "-" : "+") : rng.next() < 0.48 ? "-" : "+";
-    }
+    const op: CalcOp = diff >= 1 && rng.next() < 0.48 ? "-" : "+";
     cages.push({ cells, target: op === "+" ? sum : diff, op });
   }
 
@@ -217,13 +197,13 @@ export function generateAddSubPuzzle(
 ): GeneratedAddSub {
   const struct = buildStructure(meta);
   const coverage = difficulty === "easy" ? 0.62 : difficulty === "medium" ? 0.78 : 0.88;
-  const tripleChance = difficulty === "easy" ? 0.06 : difficulty === "medium" ? 0.16 : 0.22;
   const minClues = difficulty === "easy" ? 3 : difficulty === "medium" ? 0 : 0;
   const maxClues = difficulty === "easy" ? 6 : difficulty === "medium" ? 3 : 2;
 
   for (let attempt = 0; attempt < 48; attempt++) {
-    const cages = growCages(solution, meta.size, rng, coverage, tripleChance);
+    const cages = growCages(solution, meta.size, rng, coverage);
     if (cages.length < 3) continue;
+    if (cages.some((c) => c.cells.length !== 2)) continue;
     if (!cagesMatchSolution(cages, solution)) continue;
 
     const extra = addSubConstraint(cages, meta.size);
@@ -250,7 +230,7 @@ export function generateAddSubPuzzle(
   }
 
   // 兜底：多铺加法笼 + 若干已知数
-  const cages = growCages(solution, meta.size, rng, 0.95, 0.1).map((cage) => {
+  const cages = growCages(solution, meta.size, rng, 0.95).map((cage) => {
     const values = cage.cells.map((c) => solution[c]);
     return { ...cage, op: "+" as CalcOp, target: evalCalcCage(values, "+") };
   });

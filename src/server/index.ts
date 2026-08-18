@@ -235,14 +235,17 @@ const app = new Elysia()
       .all();
     const progressMap = new Map(progress.map((p) => [p.lessonId, p.status]));
 
-    return lessons.map((l) => ({
-      id: l.id,
-      typeCode: l.typeCode,
-      phase: l.phase,
-      title: l.title,
-      sortOrder: l.sortOrder,
-      status: progressMap.get(l.id) ?? "locked",
-    }));
+    return lessons.map((l) => {
+      const raw = progressMap.get(l.id) ?? "available";
+      return {
+        id: l.id,
+        typeCode: l.typeCode,
+        phase: l.phase,
+        title: l.title,
+        sortOrder: l.sortOrder,
+        status: raw === "locked" ? "available" : raw,
+      };
+    });
   })
 
   // ─── 重置全部课程进度（须在 /:id 之前注册）───
@@ -251,7 +254,7 @@ const app = new Elysia()
     let resetCount = 0;
 
     for (const lesson of allLessons) {
-      const status = lesson.sortOrder === 1 ? "available" : "locked";
+      const status = "available";
       const existing = db
         .select()
         .from(schema.lessonProgress)
@@ -312,7 +315,7 @@ const app = new Elysia()
       title: lesson.title,
       sortOrder: lesson.sortOrder,
       sections: JSON.parse(lesson.contentJson),
-      status: progress?.status ?? "locked",
+      status: !progress?.status || progress.status === "locked" ? "available" : progress.status,
     };
   })
 
