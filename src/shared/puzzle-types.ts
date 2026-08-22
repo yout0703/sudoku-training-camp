@@ -1,6 +1,6 @@
 /**
- * 题型目录 — 对齐「奔跑吧·少年」数独之星 10-12 岁组
- * phase: 1=入门 2=基础变体 3=进阶变体 4=高阶/总决赛
+ * 题型目录 — 涵盖入门四宫、进阶六宫与经典九宫标准及全部核心变体
+ * phase: 1=入门基础 2=基础变体 3=进阶变体 4=高阶挑战
  */
 
 export interface PuzzleTypeDef {
@@ -20,7 +20,7 @@ export interface PuzzleTypeDef {
 }
 
 export const PUZZLE_TYPES: PuzzleTypeDef[] = [
-  // ─── Phase 1: 入门标准 ───
+  // ─── Phase 1: 入门基础 ───
   {
     code: "standard_4",
     name: "四宫标准数独",
@@ -67,7 +67,22 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     isFinals: true,
   },
 
-  // ─── Phase 2: 基础变体 ───
+  // ─── Phase 2: 基础变体（对角线、奇偶、杀手、加减、大小数、不等号、温度计） ───
+  {
+    code: "diagonal_4",
+    name: "四宫对角线数独",
+    gridSize: 4,
+    boxRows: 2,
+    boxCols: 2,
+    variantType: "diagonal",
+    description: "4×4 盘面 + 两条对角线填 1-4 不重复",
+    rules: "将数字 1-4 填入空格内，使每行、每列、每宫以及两条对角线上的数字均不重复。",
+    icon: "✖️",
+    color: "#db2777",
+    phase: 2,
+    sortOrder: 4,
+    isFinals: false,
+  },
   {
     code: "diagonal_6",
     name: "六宫对角线数独",
@@ -75,13 +90,43 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     boxRows: 2,
     boxCols: 3,
     variantType: "diagonal",
-    description: "标准规则 + 两条对角线也不能重复",
+    description: "6×6 盘面 + 两条对角线填 1-6 不重复",
     rules: "将数字 1-6 填入空格内，使每行、每列、每宫以及两条对角线上的数字均不重复。",
     icon: "✖️",
     color: "#db2777",
     phase: 2,
-    sortOrder: 4,
+    sortOrder: 5,
     isFinals: true,
+  },
+  {
+    code: "diagonal_9",
+    name: "九宫对角线数独",
+    gridSize: 9,
+    boxRows: 3,
+    boxCols: 3,
+    variantType: "diagonal",
+    description: "9×9 经典盘面 + 两条主对角线填 1-9 不重复 (Sudoku X)",
+    rules: "将数字 1-9 填入空格内，使每行、每列、每宫以及两条主对角线上的数字均不重复。",
+    icon: "✖️",
+    color: "#db2777",
+    phase: 2,
+    sortOrder: 6,
+    isFinals: true,
+  },
+  {
+    code: "odd_even_4",
+    name: "四宫奇偶数独",
+    gridSize: 4,
+    boxRows: 2,
+    boxCols: 2,
+    variantType: "odd_even",
+    description: "方块格填偶数 2/4，圆格填奇数 1/3",
+    rules: "将数字 1-4 填入空格内，使每行、每列、每宫内数字均不重复。含正方形的空格内只能填偶数（2、4），含圆形的空格内只能填奇数（1、3）。",
+    icon: "🔷",
+    color: "#0891b2",
+    phase: 2,
+    sortOrder: 7,
+    isFinals: false,
   },
   {
     code: "odd_even_6",
@@ -90,12 +135,27 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     boxRows: 2,
     boxCols: 3,
     variantType: "odd_even",
-    description: "方块格只能填偶数，圆格只能填奇数",
+    description: "方块格填偶数 (2,4,6)，圆格填奇数 (1,3,5)",
     rules: "将数字 1-6 填入空格内，使每行、每列、每宫内数字均不重复。含正方形的空格内只能填偶数（2、4、6），含圆形的空格内只能填奇数（1、3、5）。",
     icon: "🔷",
     color: "#0891b2",
     phase: 2,
-    sortOrder: 5,
+    sortOrder: 8,
+    isFinals: true,
+  },
+  {
+    code: "odd_even_9",
+    name: "九宫奇偶数独",
+    gridSize: 9,
+    boxRows: 3,
+    boxCols: 3,
+    variantType: "odd_even",
+    description: "方块格填偶数 (2,4,6,8)，圆格填奇数 (1,3,5,7,9)",
+    rules: "将数字 1-9 填入空格内，使每行、每列、每宫内数字均不重复。含正方形的空格内只能填偶数（2、4、6、8），含圆形的空格内只能填奇数（1、3、5、7、9）。",
+    icon: "🔷",
+    color: "#0891b2",
+    phase: 2,
+    sortOrder: 9,
     isFinals: true,
   },
   {
@@ -110,7 +170,37 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     icon: "🎯",
     color: "#dc2626",
     phase: 2,
-    sortOrder: 6,
+    sortOrder: 10,
+    isFinals: true,
+  },
+  {
+    code: "killer_6",
+    name: "六宫杀手数独",
+    gridSize: 6,
+    boxRows: 2,
+    boxCols: 3,
+    variantType: "killer",
+    description: "六宫虚线笼内数字之和等于提示数",
+    rules: "将数字 1-6 填入空格内，使每行、每列、每宫内的数字均不重复。虚线框内提示数表示该框内所有数字之和，同一虚线框内不能出现相同的数字。",
+    icon: "🎯",
+    color: "#b91c1c",
+    phase: 2,
+    sortOrder: 11,
+    isFinals: true,
+  },
+  {
+    code: "killer_9",
+    name: "九宫杀手数独",
+    gridSize: 9,
+    boxRows: 3,
+    boxCols: 3,
+    variantType: "killer",
+    description: "9×9 经典虚线框内数字之和等于提示数且不重复",
+    rules: "将数字 1-9 填入空格内，使每行、每列、每宫内的数字均不重复。虚线框内提示数表示该框内所有数字之和，同一虚线框内不能出现相同的数字。",
+    icon: "🎯",
+    color: "#991b1b",
+    phase: 2,
+    sortOrder: 12,
     isFinals: true,
   },
   {
@@ -125,7 +215,7 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     icon: "±",
     color: "#0e7490",
     phase: 2,
-    sortOrder: 7,
+    sortOrder: 13,
     isFinals: false,
   },
   {
@@ -135,12 +225,12 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     boxRows: 2,
     boxCols: 2,
     variantType: "big_small",
-    description: "灰格填大数，白格填小数",
+    description: "灰格填大数 (3-4)，白格填小数 (1-2)",
     rules: "将数字 1-4 填入空格内，使每行、每列、每宫内数字均不重复。灰色格内只能填较大数（3、4），白色格内只能填较小数（1、2）。",
     icon: "◐",
     color: "#64748b",
     phase: 2,
-    sortOrder: 8,
+    sortOrder: 14,
     isFinals: false,
   },
   {
@@ -155,7 +245,7 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     icon: "◑",
     color: "#475569",
     phase: 2,
-    sortOrder: 9,
+    sortOrder: 15,
     isFinals: false,
   },
   {
@@ -170,7 +260,7 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     icon: "≷",
     color: "#ea580c",
     phase: 2,
-    sortOrder: 10,
+    sortOrder: 16,
     isFinals: false,
   },
   {
@@ -185,11 +275,11 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     icon: "🌡️",
     color: "#e11d48",
     phase: 2,
-    sortOrder: 11,
+    sortOrder: 17,
     isFinals: false,
   },
 
-  // ─── Phase 3: 进阶变体 ───
+  // ─── Phase 3: 进阶变体（不规则、连续、五六、堡垒、比例） ───
   {
     code: "irregular_6",
     name: "六宫不规则数独",
@@ -202,7 +292,7 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     icon: "🧩",
     color: "#d97706",
     phase: 3,
-    sortOrder: 12,
+    sortOrder: 18,
     isFinals: true,
   },
   {
@@ -217,7 +307,7 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     icon: "🔗",
     color: "#059669",
     phase: 3,
-    sortOrder: 13,
+    sortOrder: 19,
     isFinals: true,
   },
   {
@@ -227,12 +317,12 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     boxRows: 2,
     boxCols: 3,
     variantType: "sum_56",
-    description: "圆圈中的 5/6 表示两侧格内数字之和",
+    description: "两格之间圆圈中的 5/6 表示两侧数字之和",
     rules: "将数字 1-6 填入空格内，使每行、每列、每宫内数字均不重复。盘面内圆圈中的数字 5 和 6 分别表示两侧格内数字之和，相邻两格中间没有圆圈则两侧格内数字之和不能为 5 和 6。",
     icon: "🔮",
     color: "#9333ea",
     phase: 3,
-    sortOrder: 14,
+    sortOrder: 20,
     isFinals: true,
   },
   {
@@ -247,7 +337,7 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     icon: "🏰",
     color: "#57534e",
     phase: 3,
-    sortOrder: 15,
+    sortOrder: 21,
     isFinals: true,
   },
   {
@@ -262,26 +352,11 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     icon: "➗",
     color: "#2563eb",
     phase: 3,
-    sortOrder: 16,
-    isFinals: false,
-  },
-  {
-    code: "killer_6",
-    name: "六宫杀手数独",
-    gridSize: 6,
-    boxRows: 2,
-    boxCols: 3,
-    variantType: "killer",
-    description: "虚线笼内数字之和等于提示数",
-    rules: "将数字 1-6 填入空格内，使每行、每列、每宫内的数字均不重复。虚线框内提示数表示该框内所有数字之和，同一虚线框内不能出现相同的数字。",
-    icon: "🎯",
-    color: "#b91c1c",
-    phase: 3,
-    sortOrder: 17,
+    sortOrder: 22,
     isFinals: false,
   },
 
-  // ─── Phase 4: 高阶 / 总决赛 ───
+  // ─── Phase 4: 高阶挑战 ───
   {
     code: "antiknight_6",
     name: "六宫无马数独",
@@ -294,7 +369,7 @@ export const PUZZLE_TYPES: PuzzleTypeDef[] = [
     icon: "♞",
     color: "#991b1b",
     phase: 4,
-    sortOrder: 18,
+    sortOrder: 23,
     isFinals: true,
   },
 ];

@@ -32,11 +32,11 @@ function getBorderStyle(
 ): React.CSSProperties {
   if (irregular) return getIrregularBorders(row, col, size, irregular);
   const style: React.CSSProperties = {
-    borderRight: "1px solid #c5d4ce",
-    borderBottom: "1px solid #c5d4ce",
+    borderRight: "1px solid rgba(34, 28, 22, 0.16)",
+    borderBottom: "1px solid rgba(34, 28, 22, 0.16)",
   };
-  if ((col + 1) % boxCols === 0 && col < size - 1) style.borderRight = "3px solid #1a2e28";
-  if ((row + 1) % boxRows === 0 && row < size - 1) style.borderBottom = "3px solid #1a2e28";
+  if ((col + 1) % boxCols === 0 && col < size - 1) style.borderRight = "2.5px solid #221C16";
+  if ((row + 1) % boxRows === 0 && row < size - 1) style.borderBottom = "2.5px solid #221C16";
   return style;
 }
 
@@ -49,14 +49,14 @@ function getIrregularBorders(
   const idx = row * size + col;
   const myBox = irregular.boxOf[idx];
   const style: React.CSSProperties = {
-    borderRight: "1px solid #c5d4ce",
-    borderBottom: "1px solid #c5d4ce",
+    borderRight: "1px solid rgba(34, 28, 22, 0.16)",
+    borderBottom: "1px solid rgba(34, 28, 22, 0.16)",
   };
   if (col < size - 1) {
-    if (irregular.boxOf[idx + 1] !== myBox) style.borderRight = "3px solid #1a2e28";
+    if (irregular.boxOf[idx + 1] !== myBox) style.borderRight = "2.5px solid #221C16";
   }
   if (row < size - 1) {
-    if (irregular.boxOf[(row + 1) * size + col] !== myBox) style.borderBottom = "3px solid #1a2e28";
+    if (irregular.boxOf[(row + 1) * size + col] !== myBox) style.borderBottom = "2.5px solid #221C16";
   }
   return style;
 }
@@ -139,11 +139,11 @@ function SudokuGridBase({ puzzle, readOnly, highlightCells, displayGrid, classNa
     <div ref={shellRef} className={`relative w-full ${className}`}>
       <div className="relative mx-auto" style={{ width: cellSize * size + thick * 2 }}>
       <div
-        className="grid overflow-hidden rounded-2xl bg-surface-elevated shadow-card"
+        className="grid overflow-hidden rounded-2xl bg-surface shadow-[4px_4px_0_var(--color-ink)]"
         style={{
           width: cellSize * size + thick * 2,
           gridTemplateColumns: `repeat(${size}, ${cellSize}px)`,
-          border: `${thick}px solid #1a2e28`,
+          border: `${thick}px solid #2B2622`,
         }}
       >
         {Array.from({ length: total }).map((_, i) => {
@@ -168,13 +168,14 @@ function SudokuGridBase({ puzzle, readOnly, highlightCells, displayGrid, classNa
           const onAntiDiag = diagCells?.anti.has(i);
           const isDemoHL = demoHL.has(i);
 
-          let bg = "bg-surface-elevated";
-          if (isError) bg = "bg-danger-soft/70";
-          else if (isDemoHL) bg = "bg-accent-100";
-          else if (isSelected && noteMode) bg = "bg-warning-soft";
-          else if (isSelected) bg = "bg-accent-200";
-          else if (sameValue) bg = "bg-accent-100";
-          else if (inSameArea) bg = "bg-surface";
+          let bg = "bg-surface";
+          if (isError) bg = "bg-danger-soft";
+          else if (isDemoHL) bg = "bg-yellow-soft";
+          else if (isSelected && noteMode) bg = "bg-orange-soft ring-2 ring-inset ring-orange";
+          else if (isSelected) bg = "bg-[#FFD84D] ring-2 ring-inset ring-ink";
+          else if (sameValue) bg = "bg-[#FFEAA3]";
+          else if (inSameArea) bg = "bg-[#FFF9EC]";
+          else if ((onMainDiag || onAntiDiag) && !isSelected) bg = "bg-purple-soft/50";
 
           const isGreyFortress = fortress?.grey[i] === 1;
           const isGreyBig = bigSmall?.grey[i] === 1;
@@ -182,7 +183,7 @@ function SudokuGridBase({ puzzle, readOnly, highlightCells, displayGrid, classNa
             bg = "bg-surface-sunken";
           }
           if ((isGreyFortress || isGreyBig) && isSelected) {
-            bg = noteMode ? "bg-warning-soft" : "bg-accent-300";
+            bg = noteMode ? "bg-orange-soft ring-2 ring-inset ring-orange" : "bg-[#FFD84D] ring-2 ring-inset ring-ink";
           }
 
           const parity = oddEven?.parity[i];
@@ -192,8 +193,8 @@ function SudokuGridBase({ puzzle, readOnly, highlightCells, displayGrid, classNa
           return (
             <div
               key={i}
-              className={`${bg} relative flex items-center justify-center transition-colors duration-150 ${
-                readOnly ? "" : "cursor-pointer"
+              className={`${bg} relative flex items-center justify-center transition-all duration-100 ${
+                readOnly ? "" : "cursor-pointer active:scale-95"
               }`}
               style={{
                 ...getBorderStyle(row, col, size, boxRows, boxCols, irregular),
@@ -206,53 +207,40 @@ function SudokuGridBase({ puzzle, readOnly, highlightCells, displayGrid, classNa
             >
               {onMainDiag && (
                 <div
-                  className="pointer-events-none absolute"
+                  className="pointer-events-none absolute inset-0 opacity-20"
                   style={{
-                    width: `${cellSize * Math.SQRT2}px`,
-                    height: "1.5px",
-                    background: "rgba(147,51,234,0.28)",
-                    transform: "rotate(45deg)",
-                    transformOrigin: "center",
+                    background: "linear-gradient(135deg, transparent 46%, #8B5CF6 47%, #8B5CF6 53%, transparent 54%)",
                   }}
                 />
               )}
               {onAntiDiag && (
                 <div
-                  className="pointer-events-none absolute"
+                  className="pointer-events-none absolute inset-0 opacity-20"
                   style={{
-                    width: `${cellSize * Math.SQRT2}px`,
-                    height: "1.5px",
-                    background: "rgba(147,51,234,0.28)",
-                    transform: "rotate(-45deg)",
-                    transformOrigin: "center",
+                    background: "linear-gradient(45deg, transparent 46%, #8B5CF6 47%, #8B5CF6 53%, transparent 54%)",
                   }}
                 />
               )}
 
               {parity === 1 && (
                 <div
-                  className="pointer-events-none absolute rounded-full"
-                  style={{ width: "70%", height: "70%", border: "2px solid #0891b2" }}
+                  className="pointer-events-none absolute rounded-full border-2 border-blue bg-blue/10"
+                  style={{ width: "72%", height: "72%" }}
                 />
               )}
               {parity === 2 && (
                 <div
-                  className="pointer-events-none absolute"
-                  style={{
-                    width: "70%",
-                    height: "70%",
-                    border: "2px solid #0891b2",
-                    borderRadius: "3px",
-                  }}
+                  className="pointer-events-none absolute rounded-[6px] border-2 border-blue bg-blue/10"
+                  style={{ width: "72%", height: "72%" }}
                 />
               )}
 
               {value !== 0 && (
                 <span
-                  className="relative z-10 select-none font-bold tabular"
+                  className="relative z-10 select-none font-black tabular font-sans transition-transform"
                   style={{
                     fontSize,
-                    color: isError ? "#dc2626" : isGiven ? "#1a2e28" : "#0d9488",
+                    color: isError ? "#E84D4D" : isGiven ? "#221C16" : "#147B8E",
                   }}
                 >
                   {value}
@@ -261,10 +249,10 @@ function SudokuGridBase({ puzzle, readOnly, highlightCells, displayGrid, classNa
 
               {isSelected && noteMode && !readOnly && (
                 <div
-                  className="pointer-events-none absolute rounded-[3px]"
+                  className="pointer-events-none absolute rounded-[6px]"
                   style={{
                     inset: 3,
-                    border: "1.5px dashed #d97706",
+                    border: "2px dashed #FF772A",
                   }}
                 />
               )}
@@ -323,28 +311,108 @@ function SudokuGridBase({ puzzle, readOnly, highlightCells, displayGrid, classNa
 
 export const SudokuGrid = memo(SudokuGridBase);
 
-function cageRect(cells: number[], size: number) {
-  let minR = size;
-  let maxR = -1;
-  let minC = size;
-  let maxC = -1;
+function renderCageContour(
+  cells: number[],
+  size: number,
+  cellSize: number,
+  keyPrefix: string,
+  color = "#E04F4F",
+) {
   const set = new Set(cells);
+  const inset = 3;
+  const lines: React.ReactNode[] = [];
+
   for (const cell of cells) {
     const r = Math.floor(cell / size);
     const c = cell % size;
-    if (r < minR) minR = r;
-    if (r > maxR) maxR = r;
-    if (c < minC) minC = c;
-    if (c > maxC) maxC = c;
-  }
-  const expected = (maxR - minR + 1) * (maxC - minC + 1);
-  if (cells.length !== expected) return null;
-  for (let r = minR; r <= maxR; r++) {
-    for (let c = minC; c <= maxC; c++) {
-      if (!set.has(r * size + c)) return null;
+    const x0 = c * cellSize;
+    const x1 = (c + 1) * cellSize;
+    const y0 = r * cellSize;
+    const y1 = (r + 1) * cellSize;
+
+    const hasTop = set.has((r - 1) * size + c);
+    const hasBottom = set.has((r + 1) * size + c);
+    const hasLeft = set.has(r * size + (c - 1));
+    const hasRight = set.has(r * size + (c + 1));
+
+    // 顶部外边线
+    if (!hasTop) {
+      const lx = x0 + (hasLeft ? 0 : inset);
+      const rx = x1 - (hasRight ? 0 : inset);
+      lines.push(
+        <div
+          key={`${keyPrefix}-${cell}-T`}
+          className="pointer-events-none absolute"
+          style={{
+            left: lx,
+            top: y0 + inset,
+            width: rx - lx,
+            height: 0,
+            borderTop: `2px dashed ${color}`,
+          }}
+        />,
+      );
+    }
+
+    // 底部外边线
+    if (!hasBottom) {
+      const lx = x0 + (hasLeft ? 0 : inset);
+      const rx = x1 - (hasRight ? 0 : inset);
+      lines.push(
+        <div
+          key={`${keyPrefix}-${cell}-B`}
+          className="pointer-events-none absolute"
+          style={{
+            left: lx,
+            top: y1 - inset,
+            width: rx - lx,
+            height: 0,
+            borderTop: `2px dashed ${color}`,
+          }}
+        />,
+      );
+    }
+
+    // 左侧外边线
+    if (!hasLeft) {
+      const ty = y0 + (hasTop ? 0 : inset);
+      const by = y1 - (hasBottom ? 0 : inset);
+      lines.push(
+        <div
+          key={`${keyPrefix}-${cell}-L`}
+          className="pointer-events-none absolute"
+          style={{
+            left: x0 + inset,
+            top: ty,
+            width: 0,
+            height: by - ty,
+            borderLeft: `2px dashed ${color}`,
+          }}
+        />,
+      );
+    }
+
+    // 右侧外边线
+    if (!hasRight) {
+      const ty = y0 + (hasTop ? 0 : inset);
+      const by = y1 - (hasBottom ? 0 : inset);
+      lines.push(
+        <div
+          key={`${keyPrefix}-${cell}-R`}
+          className="pointer-events-none absolute"
+          style={{
+            left: x1 - inset,
+            top: ty,
+            width: 0,
+            height: by - ty,
+            borderLeft: `2px dashed ${color}`,
+          }}
+        />,
+      );
     }
   }
-  return { minR, maxR, minC, maxC };
+
+  return lines;
 }
 
 function CalcCageMarks({
@@ -356,66 +424,35 @@ function CalcCageMarks({
   size: number;
   cellSize: number;
 }) {
-  const inset = Math.max(3, Math.round(cellSize * 0.08));
   const marks: React.ReactNode[] = [];
 
   for (let ci = 0; ci < data.cages.length; ci++) {
     const cage = data.cages[ci];
     if (cage.cells.length < 2) continue;
 
-    let minCell = cage.cells[0];
-    for (const c of cage.cells) if (c < minCell) minCell = c;
-    const mr = Math.floor(minCell / size);
-    const mc = minCell % size;
-    const rect = cageRect(cage.cells, size);
-
-    if (rect) {
-      marks.push(
-        <div
-          key={`cage-${ci}`}
-          className="absolute rounded-[5px]"
-          style={{
-            left: rect.minC * cellSize + inset,
-            top: rect.minR * cellSize + inset,
-            width: (rect.maxC - rect.minC + 1) * cellSize - inset * 2,
-            height: (rect.maxR - rect.minR + 1) * cellSize - inset * 2,
-            border: "1.5px dashed #1a2e28",
-          }}
-        />,
-      );
-    } else {
-      const set = new Set(cage.cells);
-      for (const cell of cage.cells) {
-        const r = Math.floor(cell / size);
-        const c = cell % size;
-        const top = r === 0 || !set.has((r - 1) * size + c);
-        const bottom = r === size - 1 || !set.has((r + 1) * size + c);
-        const left = c === 0 || !set.has(r * size + c - 1);
-        const right = c === size - 1 || !set.has(r * size + c + 1);
-        marks.push(
-          <div
-            key={`cage-${ci}-${cell}`}
-            className="absolute"
-            style={{
-              left: c * cellSize + inset,
-              top: r * cellSize + inset,
-              width: cellSize - inset * 2,
-              height: cellSize - inset * 2,
-              borderTop: top ? "1.5px dashed #1a2e28" : "none",
-              borderBottom: bottom ? "1.5px dashed #1a2e28" : "none",
-              borderLeft: left ? "1.5px dashed #1a2e28" : "none",
-              borderRight: right ? "1.5px dashed #1a2e28" : "none",
-            }}
-          />,
-        );
+    // 寻找最左上的格用于放标签
+    let topCell = cage.cells[0];
+    let topR = Math.floor(topCell / size);
+    let topC = topCell % size;
+    for (const c of cage.cells) {
+      const r = Math.floor(c / size);
+      const col = c % size;
+      if (r < topR || (r === topR && col < topC)) {
+        topCell = c;
+        topR = r;
+        topC = col;
       }
     }
 
     marks.push(
+      ...renderCageContour(cage.cells, size, cellSize, `calc-${ci}`, "#0E7490"),
+    );
+
+    marks.push(
       <div
-        key={`lab-${ci}`}
-        className="absolute z-20 text-[10px] font-bold tabular leading-none text-ink"
-        style={{ left: mc * cellSize + inset + 1, top: mr * cellSize + inset + 1 }}
+        key={`calc-lab-${ci}`}
+        className="pointer-events-none absolute z-20 flex items-center rounded bg-surface/95 px-1 text-[9px] font-black leading-none text-[#0E7490] shadow-[0.5px_0.5px_0_var(--color-ink)] border border-[#0E7490]/40"
+        style={{ left: topC * cellSize + 4, top: topR * cellSize + 4 }}
       >
         {cage.target}
         {cage.op}
@@ -470,18 +507,36 @@ function Sum56Marks({
   cellSize: number;
 }) {
   const marks: React.ReactNode[] = [];
+  const diameter = Math.max(16, Math.min(22, Math.round(cellSize * 0.4)));
+  const halfD = diameter / 2;
+
   for (const [pair, sum] of sums) {
     const [a, b] = pair.split("-").map(Number);
     const ra = Math.floor(a / size);
     const ca = a % size;
-    const isHorizontal = Math.floor(b / size) === ra;
-    const left = isHorizontal ? (ca + 0.5) * cellSize + 3 : ca * cellSize + cellSize / 2;
-    const top = isHorizontal ? ra * cellSize + cellSize / 2 : (ra + 0.5) * cellSize + 3;
+    const rb = Math.floor(b / size);
+    const cb = b % size;
+    const isHorizontal = ra === rb;
+
+    const cx = isHorizontal
+      ? Math.max(ca, cb) * cellSize
+      : ca * cellSize + cellSize / 2;
+    const cy = isHorizontal
+      ? ra * cellSize + cellSize / 2
+      : Math.max(ra, rb) * cellSize;
+
     marks.push(
       <div
         key={pair}
-        className="pointer-events-none absolute flex items-center justify-center rounded-full border border-warning bg-warning-soft font-bold text-warning"
-        style={{ left: left - 11, top: top - 11, width: 22, height: 22, fontSize: 11 }}
+        className="pointer-events-none absolute z-20 flex items-center justify-center rounded-full border-2 border-ink bg-surface font-black text-ink shadow-[1px_1px_0_var(--color-ink)]"
+        style={{
+          left: cx - halfD,
+          top: cy - halfD,
+          width: diameter,
+          height: diameter,
+          fontSize: Math.max(9, Math.round(diameter * 0.58)),
+          lineHeight: 1,
+        }}
       >
         {sum}
       </div>,
@@ -502,37 +557,34 @@ function KillerCageMarks({
   const marks: React.ReactNode[] = [];
   for (let ci = 0; ci < data.cages.length; ci++) {
     const cage = data.cages[ci];
-    let minCell = cage.cells[0];
-    for (const c of cage.cells) if (c < minCell) minCell = c;
-    const mr = Math.floor(minCell / size);
-    const mc = minCell % size;
+
+    // 寻找最左上的格用于放提示数
+    let topCell = cage.cells[0];
+    let topR = Math.floor(topCell / size);
+    let topC = topCell % size;
+    for (const c of cage.cells) {
+      const r = Math.floor(c / size);
+      const col = c % size;
+      if (r < topR || (r === topR && col < topC)) {
+        topCell = c;
+        topR = r;
+        topC = col;
+      }
+    }
+
+    marks.push(
+      ...renderCageContour(cage.cells, size, cellSize, `killer-${ci}`, "#E04F4F"),
+    );
+
     marks.push(
       <div
         key={`sum-${ci}`}
-        className="pointer-events-none absolute z-20 text-[10px] font-bold text-danger"
-        style={{ left: mc * cellSize + 2, top: mr * cellSize + 1 }}
+        className="pointer-events-none absolute z-20 flex items-center rounded bg-surface/95 px-1 text-[9px] font-black leading-none text-[#E04F4F] shadow-[0.5px_0.5px_0_var(--color-ink)] border border-[#E04F4F]/40"
+        style={{ left: topC * cellSize + 4, top: topR * cellSize + 4 }}
       >
         {cage.sum}
       </div>,
     );
-    for (const cell of cage.cells) {
-      const r = Math.floor(cell / size);
-      const c = cell % size;
-      marks.push(
-        <div
-          key={`cage-${ci}-${cell}`}
-          className="pointer-events-none absolute"
-          style={{
-            left: c * cellSize + 1,
-            top: r * cellSize + 1,
-            width: cellSize - 2,
-            height: cellSize - 2,
-            border: "1.5px dashed #dc2626",
-            borderRadius: 4,
-          }}
-        />,
-      );
-    }
   }
   return <>{marks}</>;
 }
@@ -652,14 +704,22 @@ function RatioMarks({
     const [a, b] = pair.split("-").map(Number);
     const ra = Math.floor(a / size);
     const ca = a % size;
-    const isH = Math.floor(b / size) === ra;
-    const left = isH ? (ca + 1) * cellSize - 10 : ca * cellSize + cellSize / 2 - 10;
-    const top = isH ? ra * cellSize + cellSize / 2 - 8 : (ra + 1) * cellSize - 8;
+    const rb = Math.floor(b / size);
+    const cb = b % size;
+    const isH = ra === rb;
+    const cx = isH ? Math.max(ca, cb) * cellSize : ca * cellSize + cellSize / 2;
+    const cy = isH ? ra * cellSize + cellSize / 2 : Math.max(ra, rb) * cellSize;
     marks.push(
       <div
         key={pair}
-        className="pointer-events-none absolute z-20 rounded bg-accent-50 px-0.5 text-[9px] font-bold text-accent-700"
-        style={{ left, top }}
+        className="pointer-events-none absolute z-20 flex items-center justify-center rounded border border-ink bg-surface px-1 text-[9px] font-black text-ink shadow-[1px_1px_0_var(--color-ink)]"
+        style={{
+          left: cx - 11,
+          top: cy - 7.5,
+          minWidth: 22,
+          height: 15,
+          lineHeight: "13px",
+        }}
       >
         {ratio}
       </div>,

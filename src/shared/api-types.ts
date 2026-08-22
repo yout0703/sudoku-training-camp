@@ -31,29 +31,38 @@ export interface PuzzleDTO {
   solution?: number[];
 }
 
-export interface LessonDTO {
-  id: number;
-  typeCode: string | null;
-  phase: number;
-  title: string;
-  sortOrder: number;
-  sections: Array<{
-    type: string;
-    title: string;
-    content: string;
-  }>;
-  status: string; // locked | available | in_progress | completed
-}
-
 /** 练习提交 */
 export interface PracticeSubmitDTO {
-  puzzleId: number;
+  puzzleId?: number;
   typeCode: string;
   difficulty: string;
   durationMs: number;
   mistakes: number;
   hintsUsed: number;
   completed: boolean;
+}
+
+/** 游戏草稿 */
+export interface SavedDraftDTO {
+  typeCode: string;
+  difficulty: string;
+  puzzleId?: number;
+  givens: number[];
+  userGrid: number[];
+  candidates: number[][]; // 每个格子的候选数列表
+  elapsedMs: number;
+  mistakes: number;
+  updatedAt?: string;
+}
+
+/** 用户信息 */
+export interface UserDTO {
+  id: number;
+  username: string;
+  name: string;
+  avatarEmoji: string;
+  totalXp: number;
+  streakDays: number;
 }
 
 /** 技能统计 */
@@ -70,39 +79,41 @@ export interface SkillStatDTO {
 
 /** 仪表盘数据 */
 export interface DashboardDTO {
-  user: {
-    id: number;
-    name: string;
-    avatarEmoji: string;
-    totalXp: number;
-    streakDays: number;
-  };
+  user: UserDTO | null;
   phases: Array<{
     phase: number;
     name: string;
-    totalLessons: number;
-    completedLessons: number;
-    puzzleTypes: Array<{ code: string; name: string; icon: string; color: string }>;
+    totalTypes: number;
+    puzzleTypes: Array<{
+      code: string;
+      name: string;
+      icon: string;
+      color: string;
+      description: string;
+      rules: string;
+      isFinals: boolean;
+    }>;
   }>;
   skillStats: SkillStatDTO[];
+  activeDrafts: Array<{
+    typeCode: string;
+    difficulty: string;
+    puzzleId?: number;
+    elapsedMs: number;
+    updatedAt: string;
+  }>;
   recentPractice: Array<{
     id: number;
     typeCode: string;
+    difficulty: string;
     durationMs: number;
     mistakes: number;
     completed: boolean;
     createdAt: string;
   }>;
-  recommendations: string[];
-  todayMission: {
-    kind: "lesson" | "weak" | "practice";
-    title: string;
-    subtitle: string;
-    href: string;
-    typeCode: string | null;
-    lessonId: number | null;
-    todayCompleted: number;
-    todayTarget: number;
+  todayProgress: {
+    completed: number;
+    target: number;
     done: boolean;
   };
   weakTypes: Array<{

@@ -1,0 +1,16 @@
+services:
+  sudoku-camp:
+    build: .
+    container_name: sudoku-training-camp
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DB_PATH=/app/data/sudoku.db
+    volumes:
+      - sudoku-data:/app/data
+
+volumes:
+  sudoku-data:

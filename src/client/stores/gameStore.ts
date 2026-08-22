@@ -1,10 +1,11 @@
 /**
  * 游戏状态管理（Zustand）
- * 盘面、选中、候选数、撤销/重做、提示
- * 对错只在交卷时判断，填数过程不给实时反馈
+ * 盘面、选中、候选数、撤销/重做、提示、草稿自动保存与恢复
  */
 import { create } from "zustand";
-import type { PuzzleDTO } from "../../shared/api-types";
+import type { PuzzleDTO, SavedDraftDTO } from "../../shared/api-types";
+import { persistProgressDraft, removeProgressDraft } from "../lib/storage";
+import { useUserStore } from "./userStore";
 
 interface HistoryEntry {
   userGrid: number[];
@@ -30,12 +31,13 @@ interface GameStore {
   mistakes: number;
   hintsUsed: number;
   startTime: number;
-  /** 交卷后标出的错误格（填数过程中不更新） */
+  initialElapsedMs: number;
+  /** 交卷后标出的错误格 */
   errorCells: number[];
   history: HistoryEntry[];
   future: HistoryEntry[];
 
-  loadPuzzle: (puzzle: PuzzleDTO) => void;
+  loadPuzzle: (puzzle: PuzzleDTO, initialDraft?: SavedDraftDTO | null) => void;
   selectCell: (cell: number | null) => void;
   inputNumber: (num: number) => void;
   eraseCell: () => void;
@@ -49,6 +51,7 @@ interface GameStore {
   isComplete: () => boolean;
   canUndo: () => boolean;
   canRedo: () => boolean;
+  clearDraft: () => void;
   reset: () => void;
 }
 
@@ -99,29 +102,74 @@ function emptyState() {
     mistakes: 0,
     hintsUsed: 0,
     startTime: 0,
+    initialElapsedMs: 0,
     errorCells: [] as number[],
     history: [] as HistoryEntry[],
     future: [] as HistoryEntry[],
   };
 }
 
+let saveTimer: any = null;
+function triggerAutoSave(state: ReturnType<typeof useGameStore.getState>) {
+  if (!state.puzzle) return;
+  if (saveTimer) clearTimeout(saveTimer);
+
+  saveTimer = setTimeout(() => {
+    const p = state.puzzle;
+    if (!p) return;
+    const currentElapsed = Date.now() - state.startTime + state.initialElapsedMs;
+    const candidatesArr = state.candidates.map((s) => Array.from(s));
+    const isLoggedIn = !!useUserStore.getState().user;
+
+    persistProgressDraft(
+      {
+        typeCode: p.typeCode,
+        difficulty: p.difficulty,
+        puzzleId: p.id,
+        givens: state.givens,
+        userGrid: state.userGrid,
+        candidates: candidatesArr,
+        elapsedMs: Math.max(0, currentElapsed),
+        mistakes: state.mistakes,
+      },
+      isLoggedIn,
+    );
+  }, 500);
+}
+
 export const useGameStore = create<GameStore>((set, get) => ({
   ...emptyState(),
 
-  loadPuzzle: (puzzle) => {
+  loadPuzzle: (puzzle, initialDraft) => {
     const size = puzzle.meta.size;
     const total = size * size;
+
+    let userGrid = [...puzzle.givens];
+    let candidates = Array.from({ length: total }, () => new Set<number>());
+    let mistakes = 0;
+    let initialElapsedMs = 0;
+
+    if (initialDraft && initialDraft.userGrid.length === total) {
+      userGrid = [...initialDraft.userGrid];
+      if (initialDraft.candidates && initialDraft.candidates.length === total) {
+        candidates = initialDraft.candidates.map((arr) => new Set<number>(arr));
+      }
+      mistakes = initialDraft.mistakes || 0;
+      initialElapsedMs = initialDraft.elapsedMs || 0;
+    }
+
     set({
       puzzle,
       givens: [...puzzle.givens],
       solution: puzzle.solution ?? [],
-      userGrid: [...puzzle.givens],
-      candidates: Array.from({ length: total }, () => new Set<number>()),
+      userGrid,
+      candidates,
       selectedCell: null,
       noteMode: false,
-      mistakes: 0,
+      mistakes,
       hintsUsed: 0,
       startTime: Date.now(),
+      initialElapsedMs,
       errorCells: [],
       history: [],
       future: [],
@@ -154,6 +202,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         history: [...state.history, prev].slice(-50),
         future: [],
       });
+      triggerAutoSave(get());
       return;
     }
 
@@ -176,6 +225,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       history: [...state.history, prev].slice(-50),
       future: [],
     });
+    triggerAutoSave(get());
   },
 
   eraseCell: () => {
@@ -199,6 +249,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       history: [...state.history, prev].slice(-50),
       future: [],
     });
+    triggerAutoSave(get());
   },
 
   toggleNoteMode: () => set((s) => ({ noteMode: !s.noteMode })),
@@ -215,6 +266,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       history: state.history.slice(0, -1),
       future: [current, ...state.future].slice(0, 50),
     });
+    triggerAutoSave(get());
   },
 
   redo: () => {
@@ -229,6 +281,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       history: [...state.history, current],
       future: state.future.slice(1),
     });
+    triggerAutoSave(get());
   },
 
   useHint: () => {
@@ -236,7 +289,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { userGrid, solution, givens, selectedCell, candidates } = state;
     if (!solution.length) return false;
 
-    // 优先当前选中空格，否则找第一个空/错误格
     let target = selectedCell;
     if (target === null || givens[target] !== 0 || userGrid[target] === solution[target]) {
       target = userGrid.findIndex((v, i) => givens[i] === 0 && v !== solution[i]);
@@ -259,6 +311,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       history: [...state.history, prev].slice(-50),
       future: [],
     });
+    triggerAutoSave(get());
     return true;
   },
 
@@ -285,7 +338,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
       errorCells: wrongCells,
       mistakes: s.mistakes + 1,
     }));
+    triggerAutoSave(get());
     return { filled: true, correct: false, wrongCount: wrongCells.length };
+  },
+
+  clearDraft: () => {
+    const p = get().puzzle;
+    if (!p) return;
+    const isLoggedIn = !!useUserStore.getState().user;
+    removeProgressDraft(p.typeCode, p.difficulty, isLoggedIn);
   },
 
   isCellGiven: (cell) => get().givens[cell] !== 0,

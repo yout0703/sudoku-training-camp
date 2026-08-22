@@ -1,12 +1,14 @@
 /**
  * Drizzle ORM 数据库 Schema
  */
-import { sqliteTable, integer, text } from "drizzle-orm/sqlite-core";
+import { sqliteTable, integer, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 // ─── 用户 ───
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull().default("小选手"),
+  username: text("username").notNull().unique(),
+  passwordHash: text("password_hash"),
+  name: text("name").notNull().default("数独选手"),
   avatarEmoji: text("avatar_emoji").notNull().default("🦊"),
   ageGroup: text("age_group").notNull().default("10-12"),
   totalXp: integer("total_xp").notNull().default(0),
@@ -44,6 +46,27 @@ export const puzzles = sqliteTable("puzzles", {
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
 });
 
+// ─── 用户进行中进度 / 草稿表 ───
+export const userSavedGames = sqliteTable(
+  "user_saved_games",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: integer("user_id").notNull(),
+    typeCode: text("type_code").notNull(),
+    difficulty: text("difficulty").notNull().default("medium"),
+    puzzleId: integer("puzzle_id"),
+    givens: text("givens").notNull(), // JSON
+    userGrid: text("user_grid").notNull(), // JSON
+    candidates: text("candidates").notNull(), // JSON
+    elapsedMs: integer("elapsed_ms").notNull().default(0),
+    mistakes: integer("mistakes").notNull().default(0),
+    updatedAt: text("updated_at").notNull().default(new Date().toISOString()),
+  },
+  (table) => ({
+    userTypeDiffIdx: uniqueIndex("user_type_diff_idx").on(table.userId, table.typeCode, table.difficulty),
+  }),
+);
+
 // ─── 练习记录 ───
 export const practiceRecords = sqliteTable("practice_records", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -59,28 +82,7 @@ export const practiceRecords = sqliteTable("practice_records", {
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
 });
 
-// ─── 课程 ───
-export const lessons = sqliteTable("lessons", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  typeCode: text("type_code"),
-  phase: integer("phase").notNull(),
-  title: text("title").notNull(),
-  sortOrder: integer("sort_order").notNull(),
-  contentJson: text("content_json").notNull(),
-  prerequisiteId: integer("prerequisite_id"),
-});
-
-// ─── 课程进度 ───
-export const lessonProgress = sqliteTable("lesson_progress", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: integer("user_id").notNull(),
-  lessonId: integer("lesson_id").notNull(),
-  status: text("status").notNull().default("locked"), // locked | available | in_progress | completed
-  startedAt: text("started_at"),
-  completedAt: text("completed_at"),
-});
-
-// ─── 技能统计（按题型聚合，用于薄弱点分析）───
+// ─── 技能统计（按题型聚合）───
 export const skillStats = sqliteTable("skill_stats", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id").notNull(),

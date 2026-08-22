@@ -1,0 +1,8 @@
+# Robots.txt for 0703 Sudoku Platform
+User-agent: *
+Allow: /
+Allow: /practice
+Allow: /practice/*
+Allow: /profile
+
+Sitemap: https://0703.pro/sitemap.xml

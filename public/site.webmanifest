@@ -1,0 +1,17 @@
+{
+  "name": "0703 Studio · 数独训练营",
+  "short_name": "0703 数独",
+  "description": "0703 Studio 出品 · 小而好玩的在线数独做题平台，涵盖 18 种变体数独题型与草稿持久化。",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FBF4E6",
+  "theme_color": "#FF8A47",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
