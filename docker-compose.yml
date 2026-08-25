@@ -9,6 +9,8 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - DB_PATH=/app/data/sudoku.db
+      # 认证签名密钥，务必设置为随机长字符串：openssl rand -hex 32
+      - AUTH_SECRET=${AUTH_SECRET:-change-me-use-openssl-rand}
     volumes:
       - sudoku-data:/app/data
 

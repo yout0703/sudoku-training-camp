@@ -27,8 +27,8 @@ export function PageHeader({
   );
 }
 
-export function SectionLabel({ children }: { children: ReactNode }) {
-  return <h2 className="section-label">{children}</h2>;
+export function SectionLabel({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <h2 className={`section-label ${className}`}>{children}</h2>;
 }
 
 export function Card({

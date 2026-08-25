@@ -57,11 +57,14 @@ export const api = {
   getPuzzle: (id: number) => fetchJSON<PuzzleDTO>(`/puzzles/${id}`),
 
   // ─── 认证 ───
-  quickLogin: (username: string, name?: string) =>
-    fetchJSON<{ success: boolean; user: UserDTO; token: string }>("/auth/quick-login", {
-      method: "POST",
-      body: JSON.stringify({ username, name }),
-    }),
+  quickLogin: (username: string, name?: string, password?: string) =>
+    fetchJSON<{ success?: boolean; user?: UserDTO; token?: string; error?: string }>(
+      "/auth/quick-login",
+      {
+        method: "POST",
+        body: JSON.stringify({ username, name, password }),
+      },
+    ),
 
   login: (username: string, password?: string) =>
     fetchJSON<{ success?: boolean; user?: UserDTO; token?: string; error?: string }>("/auth/login", {

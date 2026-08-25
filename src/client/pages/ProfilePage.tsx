@@ -60,15 +60,15 @@ export function ProfilePage() {
     }
     setAuthSubmitting(true);
     setAuthError(null);
-    const ok = await quickLogin(usernameInput.trim(), nameInput.trim() || undefined);
+    const res = await quickLogin(usernameInput.trim(), nameInput.trim() || undefined);
     setAuthSubmitting(false);
-    if (ok) {
+    if (res.success) {
       setShowAuthModal(false);
       setUsernameInput("");
       setNameInput("");
       loadData();
     } else {
-      setAuthError("登录或创建用户失败，请重试");
+      setAuthError(res.error || "登录或创建用户失败，请重试");
     }
   };
 

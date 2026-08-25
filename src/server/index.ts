@@ -4,36 +4,15 @@
  */
 import { Elysia } from "elysia";
 import { t } from "elysia";
-import { eq, sql, and, desc } from "drizzle-orm";
+import { eq, lt, and, desc } from "drizzle-orm";
 import { db, schema } from "./db/client";
 import { runMigration } from "./db/migrate";
 import { runSeed } from "./db/seed";
 import { PUZZLE_TYPES, PHASE_NAMES, getPuzzleType } from "../shared/puzzle-types";
 import { generatePuzzle } from "./puzzle-service";
 import { serializeVariantData } from "./variant-serialize";
+import { hashPassword, verifyPassword, isLegacyPlain, makeToken, parseUserIdFromHeaders } from "./auth";
 import type { Difficulty } from "../engine";
-
-// ─── 用户认证辅助 ───
-
-function parseUserIdFromHeaders(headers: Record<string, string | undefined>): number | null {
-  const auth = headers["authorization"] || headers["x-user-token"];
-  if (!auth) return null;
-  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : auth.trim();
-  if (!token) return null;
-
-  // 格式: usr_<id>_<hash/username> 或 直接数字 id
-  if (token.startsWith("usr_")) {
-    const parts = token.split("_");
-    const id = parseInt(parts[1], 10);
-    return isNaN(id) ? null : id;
-  }
-  const directId = parseInt(token, 10);
-  return isNaN(directId) ? null : directId;
-}
-
-function makeToken(user: { id: number; username: string }): string {
-  return `usr_${user.id}_${Buffer.from(user.username).toString("base64url")}`;
-}
 
 // ─── 工具函数 ───
 
@@ -189,7 +168,7 @@ const app = new Elysia()
         .insert(schema.users)
         .values({
           username: cleanUsername,
-          passwordHash: password ? password : null,
+          passwordHash: password ? hashPassword(password) : null,
           name: name?.trim() || cleanUsername,
           avatarEmoji: avatarEmoji || "🦊",
         })
@@ -223,7 +202,7 @@ const app = new Elysia()
   .post(
     "/api/auth/quick-login",
     ({ body }) => {
-      const { username, name } = body;
+      const { username, name, password } = body;
       const cleanUsername = username.trim().toLowerCase();
       if (!cleanUsername) return { error: "用户名不能为空" };
 
@@ -233,7 +212,13 @@ const app = new Elysia()
         .where(eq(schema.users.username, cleanUsername))
         .get();
 
-      if (!user) {
+      if (user && user.passwordHash) {
+        // 已设置密码的账号必须凭密码登录，防止冒名
+        if (!password || !verifyPassword(password, user.passwordHash)) {
+          return { error: "该用户名已注册，请切换到「密码登录」并输入正确密码" };
+        }
+      } else if (!user) {
+        // 新用户（游客）直接创建
         user = db
           .insert(schema.users)
           .values({
@@ -262,6 +247,7 @@ const app = new Elysia()
       body: t.Object({
         username: t.String(),
         name: t.Optional(t.String()),
+        password: t.Optional(t.String()),
       }),
     },
   )
@@ -281,8 +267,17 @@ const app = new Elysia()
       if (!user) {
         return { error: "用户不存在，请先注册" };
       }
-      if (user.passwordHash && password && user.passwordHash !== password) {
-        return { error: "密码不正确" };
+      if (user.passwordHash) {
+        if (!password || !verifyPassword(password, user.passwordHash)) {
+          return { error: "密码不正确" };
+        }
+        // 历史明文自动升级为加盐哈希
+        if (isLegacyPlain(user.passwordHash)) {
+          db.update(schema.users)
+            .set({ passwordHash: hashPassword(password) })
+            .where(eq(schema.users.id, user.id))
+            .run();
+        }
       }
 
       return {
@@ -417,37 +412,27 @@ const app = new Elysia()
       } = body;
       const now = new Date().toISOString();
 
-      const existing = db
-        .select()
-        .from(schema.userSavedGames)
-        .where(
-          and(
-            eq(schema.userSavedGames.userId, userId),
-            eq(schema.userSavedGames.typeCode, typeCode),
-            eq(schema.userSavedGames.difficulty, difficulty),
-          ),
-        )
-        .get();
-
-      if (existing) {
-        db.update(schema.userSavedGames)
-          .set({
-            puzzleId: puzzleId ?? existing.puzzleId,
-            givens: JSON.stringify(givens),
-            userGrid: JSON.stringify(userGrid),
-            candidates: JSON.stringify(candidates),
-            elapsedMs: elapsedMs ?? existing.elapsedMs,
-            mistakes: mistakes ?? existing.mistakes,
-            updatedAt: now,
-          })
-          .where(eq(schema.userSavedGames.id, existing.id))
-          .run();
-      } else {
-        db.insert(schema.userSavedGames)
-          .values({
-            userId,
-            typeCode,
-            difficulty,
+      // upsert：利用唯一索引 user_type_diff_idx 一次写入，避免 select→insert/update 两次往返
+      db.insert(schema.userSavedGames)
+        .values({
+          userId,
+          typeCode,
+          difficulty,
+          puzzleId: puzzleId ?? null,
+          givens: JSON.stringify(givens),
+          userGrid: JSON.stringify(userGrid),
+          candidates: JSON.stringify(candidates),
+          elapsedMs: elapsedMs ?? 0,
+          mistakes: mistakes ?? 0,
+          updatedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: [
+            schema.userSavedGames.userId,
+            schema.userSavedGames.typeCode,
+            schema.userSavedGames.difficulty,
+          ],
+          set: {
             puzzleId: puzzleId ?? null,
             givens: JSON.stringify(givens),
             userGrid: JSON.stringify(userGrid),
@@ -455,9 +440,9 @@ const app = new Elysia()
             elapsedMs: elapsedMs ?? 0,
             mistakes: mistakes ?? 0,
             updatedAt: now,
-          })
-          .run();
-      }
+          },
+        })
+        .run();
 
       return { saved: true, updatedAt: now };
     },
@@ -512,27 +497,29 @@ const app = new Elysia()
 
       const { drafts, records } = body;
 
-      // 同步草稿
+      // 同步草稿（用 upsert，避免每个草稿一次 select 的 N+1 查询）
       if (Array.isArray(drafts)) {
         for (const draft of drafts) {
-          const existing = db
-            .select()
-            .from(schema.userSavedGames)
-            .where(
-              and(
-                eq(schema.userSavedGames.userId, userId),
-                eq(schema.userSavedGames.typeCode, draft.typeCode),
-                eq(schema.userSavedGames.difficulty, draft.difficulty),
-              ),
-            )
-            .get();
-
-          if (!existing) {
-            db.insert(schema.userSavedGames)
-              .values({
-                userId,
-                typeCode: draft.typeCode,
-                difficulty: draft.difficulty,
+          db.insert(schema.userSavedGames)
+            .values({
+              userId,
+              typeCode: draft.typeCode,
+              difficulty: draft.difficulty,
+              puzzleId: draft.puzzleId ?? null,
+              givens: JSON.stringify(draft.givens),
+              userGrid: JSON.stringify(draft.userGrid),
+              candidates: JSON.stringify(draft.candidates),
+              elapsedMs: draft.elapsedMs ?? 0,
+              mistakes: draft.mistakes ?? 0,
+              updatedAt: draft.updatedAt || new Date().toISOString(),
+            })
+            .onConflictDoUpdate({
+              target: [
+                schema.userSavedGames.userId,
+                schema.userSavedGames.typeCode,
+                schema.userSavedGames.difficulty,
+              ],
+              set: {
                 puzzleId: draft.puzzleId ?? null,
                 givens: JSON.stringify(draft.givens),
                 userGrid: JSON.stringify(draft.userGrid),
@@ -540,9 +527,9 @@ const app = new Elysia()
                 elapsedMs: draft.elapsedMs ?? 0,
                 mistakes: draft.mistakes ?? 0,
                 updatedAt: draft.updatedAt || new Date().toISOString(),
-              })
-              .run();
-          }
+              },
+            })
+            .run();
         }
       }
 
@@ -570,8 +557,36 @@ const app = new Elysia()
     },
     {
       body: t.Object({
-        drafts: t.Optional(t.Array(t.Any())),
-        records: t.Optional(t.Array(t.Any())),
+        drafts: t.Optional(
+          t.Array(
+            t.Object({
+              typeCode: t.String(),
+              difficulty: t.String(),
+              puzzleId: t.Optional(t.Number()),
+              givens: t.Array(t.Number()),
+              userGrid: t.Array(t.Number()),
+              candidates: t.Array(t.Array(t.Number())),
+              elapsedMs: t.Number(),
+              mistakes: t.Number(),
+              updatedAt: t.Optional(t.String()),
+            }),
+          ),
+        ),
+        records: t.Optional(
+          t.Array(
+            t.Object({
+              puzzleId: t.Optional(t.Number()),
+              typeCode: t.String(),
+              difficulty: t.String(),
+              durationMs: t.Number(),
+              mistakes: t.Number(),
+              hintsUsed: t.Number(),
+              completed: t.Boolean(),
+              xpEarned: t.Optional(t.Number()),
+              createdAt: t.Optional(t.String()),
+            }),
+          ),
+        ),
       }),
     },
   )
@@ -585,99 +600,98 @@ const app = new Elysia()
       const userId = parseUserIdFromHeaders(headers);
 
       if (userId) {
-        // 记录练习
-        db.insert(schema.practiceRecords)
-          .values({
-            userId,
-            puzzleId: puzzleId ?? null,
-            typeCode,
-            difficulty,
-            durationMs,
-            mistakes,
-            hintsUsed,
-            completed,
-            xpEarned: xp,
-          })
-          .run();
-
-        // 自动清除该题型/难度的草稿
-        db.delete(schema.userSavedGames)
-          .where(
-            and(
-              eq(schema.userSavedGames.userId, userId),
-              eq(schema.userSavedGames.typeCode, typeCode),
-              eq(schema.userSavedGames.difficulty, difficulty),
-            ),
-          )
-          .run();
-
-        // 更新技能统计
-        const existing = db
-          .select()
-          .from(schema.skillStats)
-          .where(
-            and(eq(schema.skillStats.userId, userId), eq(schema.skillStats.typeCode, typeCode)),
-          )
-          .get();
-
-        if (existing) {
-          const newTotal = existing.totalAttempts + 1;
-          const newCompleted = existing.completedCount + (completed ? 1 : 0);
-          const newDuration = existing.totalDurationMs + durationMs;
-          const newMistakes = existing.totalMistakes + mistakes;
-          const newHints = existing.totalHints + hintsUsed;
-          const newBest = completed
-            ? existing.bestTimeMs
-              ? Math.min(existing.bestTimeMs, durationMs)
-              : durationMs
-            : existing.bestTimeMs;
-
-          db.update(schema.skillStats)
-            .set({
-              totalAttempts: newTotal,
-              completedCount: newCompleted,
-              totalDurationMs: newDuration,
-              totalMistakes: newMistakes,
-              totalHints: newHints,
-              bestTimeMs: newBest,
-              updatedAt: new Date().toISOString(),
-            })
-            .where(eq(schema.skillStats.id, existing.id))
-            .run();
-        } else {
-          db.insert(schema.skillStats)
+        // 记录练习 + 清草稿 + 更新技能统计 + 更新用户 XP，全部包在一个事务内，避免部分写入
+        db.transaction((tx) => {
+          tx.insert(schema.practiceRecords)
             .values({
               userId,
+              puzzleId: puzzleId ?? null,
               typeCode,
-              totalAttempts: 1,
-              completedCount: completed ? 1 : 0,
-              totalDurationMs: durationMs,
-              totalMistakes: mistakes,
-              totalHints: hintsUsed,
-              bestTimeMs: completed ? durationMs : null,
+              difficulty,
+              durationMs,
+              mistakes,
+              hintsUsed,
+              completed,
+              xpEarned: xp,
             })
             .run();
-        }
 
-        // 更新用户 XP
-        const user = db.select().from(schema.users).where(eq(schema.users.id, userId)).get();
-        if (user) {
-          const today = new Date().toISOString().split("T")[0];
-          const lastDate = user.lastPracticeDate;
-          let streak = user.streakDays;
-          if (lastDate !== today) {
-            const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
-            streak = lastDate === yesterday ? streak + 1 : 1;
-          }
-          db.update(schema.users)
-            .set({
-              totalXp: user.totalXp + xp,
-              streakDays: streak,
-              lastPracticeDate: today,
-            })
-            .where(eq(schema.users.id, userId))
+          tx.delete(schema.userSavedGames)
+            .where(
+              and(
+                eq(schema.userSavedGames.userId, userId),
+                eq(schema.userSavedGames.typeCode, typeCode),
+                eq(schema.userSavedGames.difficulty, difficulty),
+              ),
+            )
             .run();
-        }
+
+          const existing = tx
+            .select()
+            .from(schema.skillStats)
+            .where(
+              and(eq(schema.skillStats.userId, userId), eq(schema.skillStats.typeCode, typeCode)),
+            )
+            .get();
+
+          if (existing) {
+            const newTotal = existing.totalAttempts + 1;
+            const newCompleted = existing.completedCount + (completed ? 1 : 0);
+            const newDuration = existing.totalDurationMs + durationMs;
+            const newMistakes = existing.totalMistakes + mistakes;
+            const newHints = existing.totalHints + hintsUsed;
+            const newBest = completed
+              ? existing.bestTimeMs
+                ? Math.min(existing.bestTimeMs, durationMs)
+                : durationMs
+              : existing.bestTimeMs;
+
+            tx.update(schema.skillStats)
+              .set({
+                totalAttempts: newTotal,
+                completedCount: newCompleted,
+                totalDurationMs: newDuration,
+                totalMistakes: newMistakes,
+                totalHints: newHints,
+                bestTimeMs: newBest,
+                updatedAt: new Date().toISOString(),
+              })
+              .where(eq(schema.skillStats.id, existing.id))
+              .run();
+          } else {
+            tx.insert(schema.skillStats)
+              .values({
+                userId,
+                typeCode,
+                totalAttempts: 1,
+                completedCount: completed ? 1 : 0,
+                totalDurationMs: durationMs,
+                totalMistakes: mistakes,
+                totalHints: hintsUsed,
+                bestTimeMs: completed ? durationMs : null,
+              })
+              .run();
+          }
+
+          const user = tx.select().from(schema.users).where(eq(schema.users.id, userId)).get();
+          if (user) {
+            const today = new Date().toISOString().split("T")[0];
+            const lastDate = user.lastPracticeDate;
+            let streak = user.streakDays;
+            if (lastDate !== today) {
+              const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+              streak = lastDate === yesterday ? streak + 1 : 1;
+            }
+            tx.update(schema.users)
+              .set({
+                totalXp: user.totalXp + xp,
+                streakDays: streak,
+                lastPracticeDate: today,
+              })
+              .where(eq(schema.users.id, userId))
+              .run();
+          }
+        });
       }
 
       return { success: true, xpEarned: xp };
@@ -802,7 +816,7 @@ const app = new Elysia()
     // 今日任务与推荐
     const today = new Date().toISOString().split("T")[0];
     const todayRecords = recent.filter((r) => (r.createdAt ?? "").startsWith(today));
-    const todayCompleted = todayRecords.filter((r) => r.completed === 1).length;
+    const todayCompleted = todayRecords.filter((r) => r.completed).length;
     const todayTarget = 3;
 
     const sortedByWeak = [...skillStats]
@@ -846,7 +860,7 @@ const app = new Elysia()
         difficulty: r.difficulty,
         durationMs: r.durationMs,
         mistakes: r.mistakes,
-        completed: r.completed === 1,
+        completed: r.completed,
         createdAt: r.createdAt,
       })),
       todayProgress: {
@@ -858,23 +872,31 @@ const app = new Elysia()
     };
   })
 
-  // ─── 静态文件服务（生产环境）───
+  // ─── 静态文件服务（生产环境，自托管时承担 SPA 兜底 + 安全头）───
   .get("*", async ({ path }) => {
     if (process.env.NODE_ENV !== "production") {
       return new Response("Not Found", { status: 404 });
     }
+    const baseHeaders: Record<string, string> = {
+      "X-Frame-Options": "SAMEORIGIN",
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+    };
+
     const filePath = path === "/" ? "/index.html" : path;
     const file = Bun.file(`./dist${filePath}`);
     if (await file.exists()) {
-      return new Response(file, {
-        headers: { "Cache-Control": "public, max-age=3600" },
-      });
+      // 带哈希指纹的资源（如 /assets/*）长缓存，其余短缓存
+      const cacheControl = /^\/assets\//.test(filePath)
+        ? "public, max-age=31536000, immutable"
+        : "public, max-age=3600";
+      return new Response(file, { headers: { ...baseHeaders, "Cache-Control": cacheControl } });
     }
     const index = Bun.file("./dist/index.html");
     if (await index.exists()) {
-      return new Response(index);
+      return new Response(index, { headers: baseHeaders });
     }
-    return new Response("Not Found", { status: 404 });
+    return new Response("Not Found", { status: 404, headers: baseHeaders });
   });
 
 // ─── 启动 ───
@@ -884,6 +906,12 @@ const PORT = parseInt(process.env.PORT ?? "3000");
 try {
   runMigration();
   runSeed();
+
+  // 清理 30 天前的旧题，避免每次生成都落库导致表无限膨胀
+  // （被草稿引用的旧题删掉后，客户端已有 fallback：getPuzzle 404 时自动重新生成）
+  const cutoff = new Date(Date.now() - 30 * 86400000).toISOString();
+  db.delete(schema.puzzles).where(lt(schema.puzzles.createdAt, cutoff)).run();
+  console.log(`🧹 已清理过期题目（早于 ${cutoff}）`);
 } catch (e) {
   console.error("数据库自动初始化提示:", e);
 }

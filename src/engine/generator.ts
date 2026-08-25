@@ -2,9 +2,9 @@
  * 数独题目生成器
  * 算法：生成完整解 → 随机挖洞（保证唯一解）→ 按难度控制空格数
  */
-import type { GenerateOptions, Difficulty, GridMetadata, SolveOptions } from "./types";
+import type { GenerateOptions, Difficulty, GridMetadata } from "./types";
 import { type GridStructure, buildStructure, allMask, valBit, popcount } from "./grid";
-import { solve } from "./solver";
+import { solve, type SolveOptions } from "./solver";
 import { RNG } from "./rng";
 
 /** 各尺寸 + 难度对应的目标提示数（clues） */
