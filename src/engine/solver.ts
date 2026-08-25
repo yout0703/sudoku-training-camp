@@ -248,7 +248,7 @@ export function solve(
   const workGrid = cloneGrid(grid);
   const cands = initCandidates(workGrid, struct, size);
 
-  const steps: SolveStep[] = recordSteps ? [] : [];
+  const steps: SolveStep[] = [];
   const solutions: Int8Array[] = [];
 
   search(workGrid, cands, struct, units, maxSolutions, solutions, extraConstraint, recordSteps ? steps : undefined);
@@ -710,14 +710,14 @@ export function buildVariantSolveOptions(
             const b = (r + 1) * size + c;
             const va = grid[a];
             const vb = grid[b];
-            if (sym === "v" || sym === ">") {
+            if (sym === "v") {
               if (va > 0 && vb === 0) {
                 for (let v = va; v <= size; v++) elim[b] |= valBit(v);
               }
               if (vb > 0 && va === 0) {
                 for (let v = 1; v <= vb; v++) elim[a] |= valBit(v);
               }
-            } else if (sym === "^" || sym === "<") {
+            } else if (sym === "^") {
               if (va > 0 && vb === 0) {
                 for (let v = 1; v <= va; v++) elim[b] |= valBit(v);
               }

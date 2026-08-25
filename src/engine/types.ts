@@ -50,7 +50,8 @@ export type Difficulty = "easy" | "medium" | "hard" | "expert";
 
 /** 生成参数 */
 export interface GenerateOptions {
-  meta: GridMetadata;
+  /** 盘面元数据（GenerateOptions 使用方已单独传 meta，此处可选，避免生成函数默认值报类型错） */
+  meta?: GridMetadata;
   difficulty?: Difficulty;
   /** 目标空格数（若指定则优先于 difficulty） */
   clueCount?: number;

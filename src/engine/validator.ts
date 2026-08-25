@@ -375,9 +375,9 @@ export function validateVariantRules(
         const top = grid[r * size + c];
         const down = grid[(r + 1) * size + c];
         if (top > 0 && down > 0) {
-          if ((sym === "v" || sym === ">") && top <= down) {
+          if (sym === "v" && top <= down) {
             errors.push(`位置 (${r + 1},${c + 1}) [${top}] 未大于 (${r + 2},${c + 1}) [${down}]`);
-          } else if ((sym === "^" || sym === "<") && top >= down) {
+          } else if (sym === "^" && top >= down) {
             errors.push(`位置 (${r + 1},${c + 1}) [${top}] 未小于 (${r + 2},${c + 1}) [${down}]`);
           }
         }

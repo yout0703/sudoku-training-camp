@@ -11,7 +11,7 @@ interface UserState {
   loading: boolean;
   initialized: boolean;
   initAuth: () => Promise<void>;
-  quickLogin: (username: string, name?: string) => Promise<boolean>;
+  quickLogin: (username: string, name?: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   login: (username: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   register: (data: {
     username: string;
@@ -43,18 +43,18 @@ export const useUserStore = create<UserState>((set, get) => ({
     }
   },
 
-  quickLogin: async (username: string, name?: string) => {
+  quickLogin: async (username: string, name?: string, password?: string) => {
     try {
-      const res = await api.quickLogin(username, name);
+      const res = await api.quickLogin(username, name, password);
       if (res.success && res.user) {
-        setAuthToken(res.token);
+        setAuthToken(res.token ?? null);
         set({ user: res.user });
         await syncGuestDataToCloud();
-        return true;
+        return { success: true };
       }
-      return false;
-    } catch {
-      return false;
+      return { success: false, error: res.error || "登录失败" };
+    } catch (e: any) {
+      return { success: false, error: e.message || "网络请求失败" };
     }
   },
 
