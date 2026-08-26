@@ -92,7 +92,7 @@ export function HomePage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-black tracking-tight text-ink">
+                <h1 className="font-display text-xl font-black tracking-tight text-ink">
                   {user ? user.name : "0703 数独工坊"}
                 </h1>
                 <span className="inline-flex items-center gap-1 rounded-full border-1.5 border-ink bg-surface px-2.5 py-0.5 text-[10px] font-black shadow-[1px_1px_0_var(--color-ink)]">
