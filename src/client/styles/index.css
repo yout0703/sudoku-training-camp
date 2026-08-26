@@ -8,22 +8,22 @@
   --color-ink-muted: #6B5F54;
   --color-ink-faint: #9A8D80;
 
-  /* 0703 Vibrant Accents（对齐主站） */
-  --color-orange: #FF8A47;
+  /* 0703 Vibrant Accents（对齐主站但降低饱和度，整体更轻透气） */
+  --color-orange: #F08A54;
   --color-orange-soft: #FFF2E8;
-  --color-orange-strong: #E4651F;
+  --color-orange-strong: #D96A3E;
 
-  --color-yellow: #FFC94B;
+  --color-yellow: #FFD477;
   --color-yellow-soft: #FFF7DB;
 
-  --color-blue: #2FA8C4;
+  --color-blue: #55ABC0;
   --color-blue-soft: #E5F6F8;
-  --color-blue-strong: #1E8AA3;
+  --color-blue-strong: #2E8399;
 
-  --color-green: #6FBE7A;
+  --color-green: #8BC98F;
   --color-green-soft: #EAF7EC;
 
-  --color-purple: #8B5CF6;
+  --color-purple: #A78FE0;
   --color-purple-soft: #F3EEFF;
 
   --color-surface: #FFFFFF;
@@ -33,13 +33,13 @@
   --color-accent-50: var(--color-orange-soft);
   --color-accent-100: #FFE4D4;
   --color-accent-200: #FFC6A8;
-  --color-accent-300: #FFA577;
+  --color-accent-300: #F7A980;
   --color-accent-400: var(--color-orange);
-  --color-accent-500: #F1701A;
+  --color-accent-500: #E7794A;
   --color-accent-600: var(--color-orange-strong);
-  --color-accent-700: #C94E0E;
-  --color-accent-800: #A53F0C;
-  --color-accent-900: #7E2E08;
+  --color-accent-700: #C9602F;
+  --color-accent-800: #A34C24;
+  --color-accent-900: #7C3516;
 
   --color-success: var(--color-green);
   --color-success-soft: var(--color-green-soft);
@@ -53,10 +53,10 @@
   --font-display: "ZCOOL KuaiLe", "Fredoka", "Nunito", "Noto Sans SC", sans-serif;
   --font-mono: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace;
 
-  --shadow-card: 2px 2px 0 var(--color-ink);
-  --shadow-pop: 3px 3px 0 var(--color-ink);
-  --shadow-float: 4px 4px 0 var(--color-ink);
-  --shadow-board: 4px 4px 0 var(--color-ink);
+  --shadow-card: 2px 2px 0 rgba(62, 51, 41, 0.20);
+  --shadow-pop: 3px 3px 0 rgba(62, 51, 41, 0.20);
+  --shadow-float: 4px 4px 0 rgba(62, 51, 41, 0.20);
+  --shadow-board: 4px 4px 0 rgba(62, 51, 41, 0.20);
   --ease-out-soft: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
