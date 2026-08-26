@@ -88,8 +88,11 @@ export function App() {
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-paper">
+      <a href="#main" className="skip-link">
+        跳到主要内容
+      </a>
       {!isPracticeSolver && <StudioHeader />}
-      <div className="flex-1">
+      <div id="main" tabIndex={-1} className="flex-1">
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/practice" element={<PracticePage />} />

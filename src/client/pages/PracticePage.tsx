@@ -293,9 +293,37 @@ function Solver({ typeCode }: { typeCode: string }) {
 
   if (loading || !puzzle) {
     return (
-      <main className="flex min-h-[100dvh] flex-col items-center justify-center gap-3 px-4">
-        <div className="h-12 w-12 animate-spin rounded-2xl border-3 border-ink bg-yellow shadow-[3px_3px_0_var(--color-ink)]" />
-        <p className="text-sm font-bold text-ink">正在准备题目...</p>
+      <main className="flex min-h-[100dvh] flex-col items-center px-3 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] sm:px-4 md:px-6">
+        <div className="shell-solver w-full max-w-xl mx-auto">
+          {/* 顶栏骨架 */}
+          <header className="mb-4 flex w-full items-center justify-between gap-2 border-b-2 border-ink/15 pb-3">
+            <div className="skeleton h-8 w-24 rounded-full" />
+            <div className="flex flex-col items-center gap-1">
+              <div className="skeleton h-6 w-32 rounded-full" />
+              <div className="skeleton h-8 w-20" />
+            </div>
+            <div className="skeleton h-8 w-24 rounded-full" />
+          </header>
+          {/* 规则卡片骨架 */}
+          <div className="mb-3.5">
+            <div className="skeleton h-20 w-full rounded-2xl" />
+          </div>
+          {/* 难度选择骨架 */}
+          <div className="mb-3.5 flex justify-center">
+            <div className="skeleton h-9 w-56 rounded-full" />
+          </div>
+          {/* 盘面 + 键盘骨架 */}
+          <div className="solver-layout">
+            <div className="solver-grid-wrap">
+              <div className="skeleton aspect-square w-full max-w-[28rem] rounded-2xl" aria-hidden />
+            </div>
+            <div className="solver-pad-wrap">
+              <div className="skeleton h-6 w-40 rounded-full" />
+              <div className="skeleton h-24 w-full rounded-2xl" />
+              <div className="skeleton h-40 w-full rounded-2xl" />
+            </div>
+          </div>
+        </div>
       </main>
     );
   }
