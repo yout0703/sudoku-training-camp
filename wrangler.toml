@@ -14,8 +14,9 @@ not_found_handling = "single-page-application"
 run_worker_first = ["/api/*"]
 
 # 自定义域名：部署时 Cloudflare 自动为该子域名创建 proxied DNS 记录
+# （Custom Domain 的 pattern 必须是纯主机名，不能带 * 或路径）
 [[routes]]
-pattern = "sudoku.0703.pro/*"
+pattern = "sudoku.0703.pro"
 custom_domain = true
 
 # D1 数据库（binding 名为 DB，代码里 env.DB）
