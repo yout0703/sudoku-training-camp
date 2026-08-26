@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route, NavLink, useLocation } from "react-router
 import { HomePage } from "./pages/HomePage";
 import { PracticePage } from "./pages/PracticePage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { NotFoundPage } from "./pages/NotFoundPage";
 import { StudioHeader } from "./components/ui/StudioHeader";
 import { useEffect, useState } from "react";
 import { IconHome, IconGrid, IconUser } from "./components/ui/Icons";
@@ -98,6 +99,7 @@ export function App() {
           <Route path="/practice" element={<PracticePage />} />
           <Route path="/practice/:typeCode" element={<PracticePage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </div>
       {!isPracticeSolver && <BottomNav />}

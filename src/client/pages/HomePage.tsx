@@ -84,7 +84,7 @@ export function HomePage() {
   return (
     <Page>
       {/* 头部 0703 Studio 工坊 Hero 卡片 */}
-      <section className="relative mb-6 overflow-hidden rounded-3xl border-3 border-ink bg-gradient-to-br from-yellow via-yellow-soft to-orange-soft p-5 text-ink shadow-[4px_4px_0_var(--color-ink)]">
+      <section className="relative mb-6 overflow-hidden rounded-3xl border-3 border-ink bg-gradient-to-br from-yellow via-accent-200 to-orange p-5 text-ink shadow-[4px_4px_0_var(--color-ink)]">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3.5">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 border-ink bg-surface text-2xl shadow-[2px_2px_0_var(--color-ink)]">
