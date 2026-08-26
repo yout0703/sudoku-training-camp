@@ -1,0 +1,25 @@
+# Cloudflare Worker 配置：单进程同时 serve 静态前端 + /api
+# 数据库用 D1；`.env` 只适用于 Bun 本地；密钥用 `wrangler secret put AUTH_SECRET`（不入库）
+
+name = "sudoku-training-camp"
+main = "src/server/worker.ts"
+compatibility_date = "2026-08-26"
+compatibility_flags = ["nodejs_compat"]
+
+# 静态资源由 Cloudflare 承担（Vite 产出的 dist），未命中且为单页应用时回退 index.html
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
+# 自定义域名：部署时 Cloudflare 自动为该子域名创建 proxied DNS 记录
+[[routes]]
+pattern = "sudoku.0703.pro/*"
+custom_domain = true
+
+# D1 数据库（binding 名为 DB，代码里 env.DB）
+[[d1_databases]]
+binding = "DB"
+database_name = "sudoku-training-camp"
+database_id = "c6627237-d503-4d23-99e3-798796d62d94"

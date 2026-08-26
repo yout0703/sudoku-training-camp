@@ -29,3 +29,7 @@ Thumbs.db
 # logs
 *.log
 .vercel
+
+# Cloudflare / D1 本地与生成产物
+.wrangler/
+d1-seed.sql

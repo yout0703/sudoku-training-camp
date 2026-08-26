@@ -6,13 +6,19 @@
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 
 // 生产环境务必通过环境变量设置 AUTH_SECRET；未设置 / 为空时使用开发默认值并提示
-const AUTH_SECRET = process.env.AUTH_SECRET?.trim() || "sudoku-training-dev-secret";
+let AUTH_SECRET = process.env.AUTH_SECRET?.trim() || "sudoku-training-dev-secret";
 if (process.env.NODE_ENV === "production" && AUTH_SECRET === "sudoku-training-dev-secret") {
   console.warn(
     "⚠️  未设置 AUTH_SECRET，正在使用开发默认签名密钥。生产环境请务必通过环境变量设置随机密钥（openssl rand -hex 32）",
   );
 }
 const TOKEN_EXPIRY_MS = 1000 * 60 * 60 * 24 * 90; // 90 天
+
+/** Worker 入口用环境 vars 注入密钥（来自 `env` / `[vars]`）；Bun 入口默认读 process.env */
+export function setAuthSecret(secret?: string): void {
+  const trimmed = secret?.trim();
+  if (trimmed) AUTH_SECRET = trimmed;
+}
 
 // ─── 密码 ───
 

@@ -6,13 +6,14 @@
  * 运行：bun src/server/db/seed.ts
  */
 import { eq } from "drizzle-orm";
-import { db, schema } from "./client";
+import { createBunDb, schema } from "./client";
 import { PUZZLE_TYPES } from "../../shared/puzzle-types";
 import { generatePuzzle } from "../puzzle-service";
 import { serializeVariantData } from "../variant-serialize";
 import type { Difficulty } from "../../engine";
 
 export function runSeed() {
+  const db = createBunDb();
   // 1. 同步 23 个题型
   for (const pt of PUZZLE_TYPES) {
     db.insert(schema.puzzleTypes)

@@ -7,13 +7,17 @@
     "dev:server": "bun --watch src/server/index.ts",
     "dev:client": "vite",
     "build": "vite build",
-    "deploy": "bun run build && docker compose up -d --build",
+    "deploy": "bun run build && wrangler deploy",
     "start": "NODE_ENV=production bun src/server/index.ts",
     "typecheck": "tsc --noEmit",
     "db:generate": "bunx drizzle-kit generate",
     "db:migrate": "bunx drizzle-kit migrate",
     "db:push": "bunx drizzle-kit push",
     "db:seed": "bun src/server/db/seed.ts",
+    "db:create": "wrangler d1 create sudoku-training-camp",
+    "db:migrate:d1": "wrangler d1 execute sudoku-training-camp --file=src/server/db/schema.sql --remote",
+    "db:seed:d1": "bun scripts/seed-d1.ts",
+    "dev:worker": "wrangler dev",
     "test": "bun test"
   },
   "dependencies": {
